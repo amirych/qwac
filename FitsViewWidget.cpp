@@ -364,6 +364,17 @@ void FitsViewWidget::showImage()
 }
 
 
+void FitsViewWidget::clear()
+{
+    scene.clear();
+    currentImage_buffer = nullptr;
+    currentScaledImage_buffer = nullptr;
+    imageIsLoaded = false;
+    currentFilename = "";
+}
+
+
+
             /*  PUBLIC METHODS  */
 
 int FitsViewWidget::getError() const

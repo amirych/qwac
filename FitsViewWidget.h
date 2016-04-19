@@ -71,6 +71,7 @@ public slots:
     void load(const QString fits_filename, const bool autoscale = true);
     void rescale(const double lcuts, const double hcuts);
     void showImage();
+    void clear();
 
 signals:
     void fitsViewError(int err);

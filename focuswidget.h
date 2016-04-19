@@ -10,6 +10,7 @@
 #include <QString>
 #include <QDoubleValidator>
 #include <QPointer>
+#include <QStringList>
 
 class FOCUSWIDGETSHARED_EXPORT FocusWidget: public QMainWindow
 {
@@ -23,6 +24,7 @@ public:
     ~FocusWidget();
 
     void setInitSetup(double start_val, double stop_val, double step_val);
+    void setExpInitSetup(QString &rootfilename, QStringList &rate, int rate_index, int xbin, int ybin);
 
     void setFocusValueRange(double min_val, double max_val, int decimals = 1);
 
@@ -54,6 +56,8 @@ private:
     double stopFocusValue;
     double stepFocusValue;
     QDoubleValidator focusValueValidator;
+
+    QStringList focusImages;
 };
 
 #endif // FOCUSWIDGET_H

@@ -7,7 +7,7 @@
 #define FOCUSWIDGET_IMAGEPOINT_FMT "<b>Pixel: </b> [%1; %2]  <b>  Value:</b> %3"
 
 FocusWidget::FocusWidget(double start_val, double stop_val, double step_val, QWidget *parent): QMainWindow(parent),
-    focusValueValidator()
+    focusValueValidator(), focusImages(QStringList())
 {
     ui.setupUi(this);
 
@@ -43,6 +43,12 @@ FocusWidget::FocusWidget(double start_val, double stop_val, double step_val, QWi
 
     connect(ui.view,SIGNAL(imageIsShown(QString)),ui.filenameLineEdit,SLOT(setText(QString)));
     connect(ui.view,SIGNAL(imagePoint(QPointF,double)),this,SLOT(showImagePoint(QPointF,double)));
+
+    // default root filename for image series
+    QString filename = "foc";
+    QStringList rates;
+    rates << "Normal";
+    expParamsDialog->init(filename,rates,0,1,1);
 }
 
 FocusWidget::FocusWidget(QWidget *parent): FocusWidget(0.0,0.0,0.0,parent)
@@ -82,6 +88,13 @@ void FocusWidget::setFocusValueRange(double min_val, double max_val, int decimal
 }
 
 
+void FocusWidget::setExpInitSetup(QString &rootfilename, QStringList &rate, int rate_index, int xbin, int ybin)
+{
+    expParamsDialog->init(rootfilename,rate,rate_index,xbin,ybin);
+}
+
+
+
             /*   PRIVATE SLOTS   */
 
 void FocusWidget::showImagePoint(QPointF pos, double val)
@@ -102,15 +115,14 @@ void FocusWidget::about_quit()
 
 void FocusWidget::run()
 {
-    ui.view->load("/home/timur/OLD_CYLON/WORK/s110808/S8950314.FTS");
-    ui.view->showImage();
 
 }
 
 
 void FocusWidget::stop()
 {
-
+    ui.view->load("/home/timur/OLD_CYLON/WORK/s110808/S8950314.FTS");
+    ui.view->showImage();
 }
 
 
@@ -125,11 +137,3 @@ void FocusWidget::setExpProps()
     expParamsDialog->exec();
 }
 
-//void FocusWidget::resizeEvent(QResizeEvent *event)
-//{
-//////    qDebug() << "resizing ...";
-//////    this->updateGeometry();
-//////    QMainWindow::resizeEvent(event);
-//////    this->updateGeometry();
-
-//}

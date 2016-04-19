@@ -2,7 +2,6 @@
 
 #include "qwt_plot_curve.h"
 #include <qwt_symbol.h>
-#include <cmath>
 
 FocussingPlotDialog::FocussingPlotDialog(const QString &title, QWidget *parent): QDialog(parent)
 {
@@ -22,7 +21,7 @@ void FocussingPlotDialog::plot(QVector<double> &foc_value, QVector<double> &fwhm
     // measured point
     QwtPlotCurve *data_curve = new QwtPlotCurve;
     data_curve->setStyle(QwtPlotCurve::NoCurve);
-    data_curve->setSymbol(QwtSymbol::Diamond);
+    data_curve->setSymbol(new QwtSymbol(QwtSymbol::Diamond));
 
     data_curve->setSamples(foc_value,fwhm);
 
@@ -34,13 +33,24 @@ void FocussingPlotDialog::plot(QVector<double> &foc_value, QVector<double> &fwhm
     QwtPlotCurve *fit_curve = new QwtPlotCurve;
     fit_curve->setStyle(QwtPlotCurve::Lines);
 
-    data_curve->setSymbol(QwtSymbol::NoSymbol);
+    data_curve->setSymbol(new QwtSymbol(QwtSymbol::NoSymbol));
 
-    QVector<double> fit_fwhm(fwhm.size(),fit_coeffs[0]);
+    QwtInterval foc_range = ui.focusCurvePlot->axisInterval(QwtPlot::xBottom);
+    double foc_step = (foc_range.maxValue() - foc_range.minValue())/(FOCUSSINGPLOTDIALOG_NPOINTS-1);
 
-    for ( size_t order = 1; order < fit_coeffs.size(); ++order ) {
-        for ( size_t i = 0; i < foc_value.size(); ++i ) {
-            fit_fwhm[i] += fit_coeffs[order]*std::pow(foc_value[i],order);
+    QVector<double> foc(FOCUSSINGPLOTDIALOG_NPOINTS);
+    QVector<double> fit_fwhm(FOCUSSINGPLOTDIALOG_NPOINTS,fit_coeffs[0]);
+
+    for ( size_t i = 0; i < FOCUSSINGPLOTDIALOG_NPOINTS; ++i ) {
+        foc[i] = foc_range.minValue() + i*foc_step;
+        double x = foc[i];
+        for ( size_t order = 1; order < fit_coeffs.size(); ++order ) {
+            fit_fwhm[i] += fit_coeffs[order]*x;
+            x *= x;
         }
     }
+
+    fit_curve->setSamples(foc,fit_fwhm);
+
+    fit_curve->attach(ui.focusCurvePlot);
 }

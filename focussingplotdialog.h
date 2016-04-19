@@ -9,6 +9,10 @@
 
 #include "ui_focussingCurvePlot.h"
 
+
+#define FOCUSSINGPLOTDIALOG_NPOINTS 100
+
+
 class FocussingPlotDialog : public QDialog
 {
 public:

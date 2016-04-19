@@ -71,23 +71,7 @@
          </widget>
         </item>
         <item row="2" column="1">
-         <widget class="QComboBox" name="rateComboBox">
-          <item>
-           <property name="text">
-            <string>Normal</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Fast</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Slow</string>
-           </property>
-          </item>
-         </widget>
+         <widget class="QComboBox" name="rateComboBox"/>
         </item>
         <item row="3" column="0">
          <widget class="QLabel" name="xstartLabel">
