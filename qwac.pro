@@ -17,7 +17,8 @@ SOURCES += \
     FitsViewWidget.cpp \
     focuswidget.cpp \
     expparamsdialog.cpp \
-    focussingplotdialog.cpp
+    focussingplotdialog.cpp \
+    psf_model.cpp
 
 HEADERS += \
     FitsViewWidget.h \
@@ -25,7 +26,8 @@ HEADERS += \
     focuswidget_global.h \
     focuswidget.h \
     expparamsdialog.h \
-    focussingplotdialog.h
+    focussingplotdialog.h \
+    psf_model.h
 
 
 FORMS += \
