@@ -3,30 +3,45 @@
 
 #include "focuswidget_global.h"
 
-#include <QObject>
+#include <memory>
 #include <QVector>
 
 
 #define PSF_MODEL_DEFAULT_ITMAX 100
 
-// number of model parameters without possible background polynom parameters
-#define PSF_MODEL_GAUSS_MIN_NPARS 3      // [Amplitude, center, fwhm]
-#define PSF_MODEL_MOFFAT_MIN_NPARS 4     // [Amplitude, center, fwhm, alpha]
-#define PSF_MODEL_GAUSS2D_MIN_NPARS 6    // [Amplitude, centerX, centerY, fwhmX, fwhmY, phi]
-#define PSF_MODEL_MOFFAT2D_MIN_NPARS 7   // [Amplitude, centerX, centerY, fwhmX, fwhmY, alpha, phi]
 
+
+        /*     Extra data type definition   */
+
+struct extraData_t
+{
+    QVector<double> x;
+    QVector<double> y;
+
+    void *extra_params;
+};
+
+
+            /*     PSF model function definition    */
+//
+//  params - PSF model function parameters (given by user)
+//  func - model function values (computed by model function)
+//  extra_data - extra parameters of the model function
+//
+typedef int (*psfModelFunc_t)(QVector<double> &params, QVector<double> &func, extraData_t *extra_data);
 
 
         /*     Base class for PSF model parameters     */
 
-class PSF_Model_Params
+class PSF_Model
 {
 public:
-    PSF_Model_Params();
-    PSF_Model_Params(QVector<double> &pars);
-    PSF_Model_Params(QVector<double> &pars, QVector<double> &lb, QVector<double> &ub);
+    PSF_Model(psfModelFunc_t func);
+    PSF_Model(psfModelFunc_t func, QVector<double> &pars, extraData_t *extra_data = nullptr);
 
-    virtual void setParams(QVector<double> &pars);
+    ~PSF_Model();
+
+    virtual void setParams(QVector<double> &pars, extraData_t *extra_data = nullptr);
     virtual void setLowerBounds(QVector<double> &lb);
     virtual void setUpperBounds(QVector<double> &ub);
     void setContrains(QVector<double> &lb, QVector<double> &ub);
@@ -36,20 +51,36 @@ public:
     QVector<double> getLowerBounds() const;
     QVector<double> getUpperBounds() const;
 
+    void setArgument(QVector<double> &x); // independent variable (to compute model)
+    void setArgument(QVector<double> &x, QVector<double> &y); // independent variable (to compute 2D-model)
+
+    QVector<double> operator()();
+    QVector<double> operator()(QVector<double> &x);
+    QVector<double> operator()(QVector<double> &x, QVector<double> &y);
 
 protected:
+    psfModelFunc_t modelFunc;
+    extraData_t* modelFuncExtraData;
+
     QVector<double> params, lowerBounds, upperBounds;
+    QVector<double> modelFuncValue;
+
+    void ensureConstrains();
+    void objetive_function(double *pars, double *func, int n_pars, int n_func, void* data);
+    virtual void compute();
 };
 
 
             /*     Gauss-family PSF model parameters classes definition    */
 
-class FOCUSWIDGETSHARED_EXPORT Gauss_Model_Params: public PSF_Model_Params
+// no extra data! order of polynom is determinated by pars length!
+// order =  pars.size() - 3, order == 0 means that no background polynom is computed
+class FOCUSWIDGETSHARED_EXPORT Gauss_Model: public PSF_Model
 {
 public:
-    Gauss_Model_Params();
-    Gauss_Model_Params(QVector<double> &pars);
-    Gauss_Model_Params(QVector<double> &pars, QVector<double> &lb, QVector<double> &ub);
+    explicit Gauss_Model();
+    Gauss_Model(QVector<double> &pars);
+    Gauss_Model(QVector<double> &pars, QVector<double> &lb, QVector<double> &ub);
 
     void setParams(QVector<double> &pars);
     void setLowerBounds(QVector<double> &lb);
@@ -58,12 +89,13 @@ public:
 
 
 
-class FOCUSWIDGETSHARED_EXPORT Gauss2D_Model_Params: public PSF_Model_Params
+// if data = nullptr then model consists of only 2D-gaussian (without any polynominal background)
+class FOCUSWIDGETSHARED_EXPORT Gauss2D_Model: public PSF_Model
 {
 public:
-    Gauss2D_Model_Params();
-    Gauss2D_Model_Params(QVector<double> &pars);
-    Gauss2D_Model_Params(QVector<double> &pars, QVector<double> &lb, QVector<double> &ub);
+    explicit Gauss2D_Model();
+    Gauss2D_Model(QVector<double> &pars, extraData_t *data = nullptr);
+    Gauss2D_Model(QVector<double> &pars, QVector<double> &lb, QVector<double> &ub, extraData_t *data = nullptr);
 
     void setParams(QVector<double> &pars);
     void setLowerBounds(QVector<double> &lb);
@@ -74,12 +106,13 @@ public:
 
         /*     Moffat-family PSF model parameters classes definition    */
 
-class FOCUSWIDGETSHARED_EXPORT Moffat_Model_Params: public PSF_Model_Params
+// see Gauss_Model class
+class FOCUSWIDGETSHARED_EXPORT Moffat_Model: public PSF_Model
 {
 public:
-    Moffat_Model_Params();
-    Moffat_Model_Params(QVector<double> &pars);
-    Moffat_Model_Params(QVector<double> &pars, QVector<double> &lb, QVector<double> &ub);
+    explicit Moffat_Model();
+    Moffat_Model(QVector<double> &pars);
+    Moffat_Model(QVector<double> &pars, QVector<double> &lb, QVector<double> &ub);
 
     void setParams(QVector<double> &pars);
     void setLowerBounds(QVector<double> &lb);
@@ -88,36 +121,17 @@ public:
 
 
 
-class FOCUSWIDGETSHARED_EXPORT Moffat2D_Model_Params: public PSF_Model_Params
+class FOCUSWIDGETSHARED_EXPORT Moffat2D_Model: public PSF_Model
 {
 public:
-    Moffat2D_Model_Params();
-    Moffat2D_Model_Params(QVector<double> &pars);
-    Moffat2D_Model_Params(QVector<double> &pars, QVector<double> &lb, QVector<double> &ub);
+    Moffat2D_Model();
+    Moffat2D_Model(QVector<double> &pars, extraData_t *data = nullptr);
+    Moffat2D_Model(QVector<double> &pars, QVector<double> &lb, QVector<double> &ub, extraData_t *data = nullptr);
 
     void setParams(QVector<double> &pars);
     void setLowerBounds(QVector<double> &lb);
     void setUpperBounds(QVector<double> &ub);
 };
 
-
-
-class FOCUSWIDGETSHARED_EXPORT PSF_Model : public QObject
-{
-    Q_OBJECT
-public:
-    enum PSF_MODEL_TYPE {Gauss, Gauss2D, Moffat, Moffat2D};
-
-    explicit PSF_Model(QObject *parent = nullptr);
-    PSF_Model(PSF_Model::PSF_MODEL_TYPE type, QObject *parent = nullptr);
-
-    PSF_MODEL_TYPE getModelType() const;
-    void setMaxIter(int itmax);
-    int getMaxIter() const;
-
-protected:
-    PSF_MODEL_TYPE modelType;
-    int maxIter; // maximum number of iterations
-};
 
 #endif // PSF_MODEL_H
