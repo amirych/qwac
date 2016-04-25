@@ -1,7 +1,10 @@
 #include "psf_model.h"
 
 #include <limits>
+#include <functional>
 #include <QDebug>
+
+#include <levmar.h>
 
 // number of model parameters without possible background polynom parameters
 #define PSF_MODEL_GAUSS_MIN_NPARS 3      // [Amplitude, center, fwhm]
@@ -314,7 +317,8 @@ static QVector<double> emptyVector;
 
 
 PSF_Model::PSF_Model(psfModelFunc_t func, QVector<double> &pars, extraData_t *extra_data):
-    modelFunc(func), modelFuncExtraData(extra_data), params(pars), modelFuncValue(emptyVector)
+    modelFunc(func), modelFuncExtraData(extra_data), params(pars), modelFuncValue(emptyVector),
+    maxIter(PSF_MODEL_DEFAULT_ITMAX)
 {
     if ( extra_data == nullptr ) {
         modelFuncExtraData = new extraData_t;
@@ -431,6 +435,57 @@ QVector<double> PSF_Model::operator ()(QVector<double> &x, QVector<double> &y)
 }
 
 
+void PSF_Model::setMaxIter(int max_iter)
+{
+    maxIter = max_iter > 0 ? max_iter : PSF_MODEL_DEFAULT_ITMAX;
+}
+
+
+int PSF_Model::getMaxIter() const
+{
+    return maxIter;
+}
+
+
+void PSF_Model::fitData(QVector<double> &data)
+{
+    if ( data.size() != modelFuncExtraData->x.size() ) return;
+
+    double info[LM_INFO_SZ];
+    double *work_space = nullptr;
+
+    try {
+        work_space = new double[LM_BC_DIF_WORKSZ(params.size(),data.size())];
+    } catch (std::bad_alloc &ex) {
+        return;
+    }
+
+    int ret = dlevmar_bc_dif([](double*, double*, int, int, void*){return;},params.data(),data.data(),params.size(),data.size(),
+                             lowerBounds.data(),upperBounds.data(),NULL,maxIter,NULL,info,work_space,NULL,(void*) modelFuncExtraData);
+
+    delete[] work_space;
+}
+
+
+void PSF_Model::fitData(QVector<double> &x, QVector<double> &data)
+{
+    if ( data.size() != x.size() ) return;
+    modelFuncExtraData->x = x;
+    fitData(data);
+}
+
+
+void PSF_Model::fitData(QVector<double> &x, QVector<double> &y, QVector<double> &data)
+{
+    if ( data.size() != x.size() ) return;
+    if ( data.size() != y.size() ) return;
+
+    modelFuncExtraData->x = x;
+    modelFuncExtraData->y = y;
+    fitData(data);
+}
+
+
 void PSF_Model::ensureConstrains()
 {
     int n = lowerBounds.size();
@@ -447,7 +502,7 @@ void PSF_Model::ensureConstrains()
 }
 
 
-void PSF_Model::objetive_function(double *pars, double *func, int n_pars, int n_func, void *data)
+void PSF_Model::objective_function(double *pars, double *func, int n_pars, int n_func, void *data)
 {
     compute();
 }
@@ -763,11 +818,3 @@ void Moffat2D_Model::setUpperBounds(QVector<double> &ub)
 
     ensureConstrains();
 }
-
-
-//            /*  PSF_Model realization   */
-
-//PSF_Model::PSF_Model(QObject *parent) : QObject(parent)
-//{
-
-//}

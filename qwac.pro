@@ -41,7 +41,7 @@ unix {
 }
 
 
-unix:!macx: LIBS += -L/usr/lib64/ -lcfitsio
+unix:!macx: LIBS += -L/usr/lib64/ -lcfitsio -llevmar
 
 INCLUDEPATH += /usr/include
 DEPENDPATH += /usr/include

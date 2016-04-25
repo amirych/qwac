@@ -58,6 +58,15 @@ public:
     QVector<double> operator()(QVector<double> &x);
     QVector<double> operator()(QVector<double> &x, QVector<double> &y);
 
+    void fitData(QVector<double> &data);
+    void fitData(QVector<double> &x, QVector<double> &data);
+    void fitData(QVector<double> &x, QVector<double> &y, QVector<double> &data);
+
+    void setMaxIter(int max_iter);
+    int getMaxIter() const;
+
+    void objective_function(double *pars, double *func, int n_pars, int n_func, void* data);
+
 protected:
     psfModelFunc_t modelFunc;
     extraData_t* modelFuncExtraData;
@@ -65,11 +74,18 @@ protected:
     QVector<double> params, lowerBounds, upperBounds;
     QVector<double> modelFuncValue;
 
+    int maxIter;
+
     void ensureConstrains();
-    void objetive_function(double *pars, double *func, int n_pars, int n_func, void* data);
     virtual void compute();
 };
 
+//std::function<void(double*, double*, int, int, void*)>
+//  modelFuncCall(PSF_Model& obj)
+//{
+//  return [&](double* a, double* b, int c, int d, void* e){
+//    return obj.objective_function(a, b, c, d, e); };
+//}
 
             /*     Gauss-family PSF model parameters classes definition    */
 
