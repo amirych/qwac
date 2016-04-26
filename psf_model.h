@@ -54,18 +54,18 @@ public:
     void setArgument(QVector<double> &x); // independent variable (to compute model)
     void setArgument(QVector<double> &x, QVector<double> &y); // independent variable (to compute 2D-model)
 
-    QVector<double> operator()();
+    QVector<double> operator()(); // return computed model values
     QVector<double> operator()(QVector<double> &x);
     QVector<double> operator()(QVector<double> &x, QVector<double> &y);
 
-    void fitData(QVector<double> &data);
+    void fitData(QVector<double> &data); // fit model to data
     void fitData(QVector<double> &x, QVector<double> &data);
     void fitData(QVector<double> &x, QVector<double> &y, QVector<double> &data);
 
     void setMaxIter(int max_iter);
     int getMaxIter() const;
 
-    void objective_function(double *pars, double *func, int n_pars, int n_func, void* data);
+//    void objective_function(double *pars, double *func, int n_pars, int n_func, void* data);
 
 protected:
     psfModelFunc_t modelFunc;

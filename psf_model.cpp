@@ -46,6 +46,10 @@
 #define PSF_MODEL_PHI_DEFAULT 0.0
 
 
+typedef void (*levmar_obj_func_t)(double*, double*, int, int, void*);
+//static levmar_obj_func_t ff;
+
+
                 /*  Polynom functions  */
 
 //
@@ -460,9 +464,15 @@ void PSF_Model::fitData(QVector<double> &data)
         return;
     }
 
-    int ret = dlevmar_bc_dif([](double*, double*, int, int, void*){return;},params.data(),data.data(),params.size(),data.size(),
+    auto ff = [this]()->levmar_obj_func_t{return (compute(), [](double*, double*, int, int, void*){});};
+
+//    auto fff = ff();
+
+    int ret = dlevmar_bc_dif([this]()->levmar_obj_func_t{return (compute(), [](double*, double*, int, int, void*){});}(),
+                             params.data(),data.data(),params.size(),data.size(),
                              lowerBounds.data(),upperBounds.data(),NULL,maxIter,NULL,info,work_space,NULL,(void*) modelFuncExtraData);
 
+    qDebug() << "LM ret = " << ret;
     delete[] work_space;
 }
 
@@ -502,10 +512,10 @@ void PSF_Model::ensureConstrains()
 }
 
 
-void PSF_Model::objective_function(double *pars, double *func, int n_pars, int n_func, void *data)
-{
-    compute();
-}
+//void PSF_Model::objective_function(double *pars, double *func, int n_pars, int n_func, void *data)
+//{
+//    compute();
+//}
 
 
 void PSF_Model::compute()
