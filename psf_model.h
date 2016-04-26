@@ -28,7 +28,12 @@ struct extraData_t
 //  func - model function values (computed by model function)
 //  extra_data - extra parameters of the model function
 //
-typedef int (*psfModelFunc_t)(QVector<double> &params, QVector<double> &func, extraData_t *extra_data);
+//   The type definition follows "levmar" package definition
+//   for objective function. According this, the last parameter
+//   type is void*, but PSF_Model class realization assumes that
+//   user-written function uses of extraData_t structure pointer.
+//
+typedef void (*psfModelFunc_t)(double* params, double* func, int n_params, int n_func, void *extra_data);
 
 
         /*     Base class for PSF model parameters     */

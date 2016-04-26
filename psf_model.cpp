@@ -46,9 +46,6 @@
 #define PSF_MODEL_PHI_DEFAULT 0.0
 
 
-typedef void (*levmar_obj_func_t)(double*, double*, int, int, void*);
-//static levmar_obj_func_t ff;
-
 
                 /*  Polynom functions  */
 
@@ -102,33 +99,32 @@ static void poly2d(double *x, double *y, double *coeffs, int n, int x_degree, in
 //    a1 - center
 //    a2 - FWHM
 //
-static int gauss(QVector<double> &pars, QVector<double> &func, extraData_t *data){
-    if ( pars.size() == 0 ) return 1;
-    if ( pars.size() < PSF_MODEL_GAUSS_MIN_NPARS) return 1;
-    if ( data == nullptr ) return 1;
+static void gauss(double* pars, double* func, int n_params, int n_func, void *ext_data){
+    if ( n_params == 0 ) return;
+    if ( n_params < PSF_MODEL_GAUSS_MIN_NPARS) return;
+    if ( ext_data == nullptr ) return;
 
-    if ( data->x.size() == 0 ) return 1;
-    if ( data->x.size() != func.size() ) func.resize(data->x.size());
+    extraData_t *data = (extraData_t*) ext_data;
+    if ( data->x.size() == 0 ) return;
+    if ( data->x.size() != n_func ) return;
 
-    int n_poly = pars.size() - PSF_MODEL_GAUSS_MIN_NPARS;
-
-    func.fill(0.0);
+    int n_poly = n_params - PSF_MODEL_GAUSS_MIN_NPARS;
 
     // compute background polynom
     if ( n_poly ) {
-        poly(data->x.data(),pars.data()+PSF_MODEL_GAUSS_MIN_NPARS,data->x.size(),n_poly,func.data());
+        poly(data->x.data(),pars+PSF_MODEL_GAUSS_MIN_NPARS,data->x.size(),n_poly,func);
+    } else {
+        memset(func,0,n_func*sizeof(double));
     }
 
     // compute gaussian
     double sigma = pars[2]/2.35482004503; // FWHM to gaussian sigma
 
-    for ( int i = 0; i < func.size(); ++i ) {
+    for ( int i = 0; i < n_func; ++i ) {
         double z2 = (data->x[i] - pars[1])/sigma;
         z2 *= z2;
         func[i] += pars[0]*exp(-z2/2.0);
     }
-
-    return 0;
 }
 
 
@@ -140,33 +136,32 @@ static int gauss(QVector<double> &pars, QVector<double> &func, extraData_t *data
 //    a2 - FWHM
 //    a3 - moffat's parameter
 //
-static int moffat(QVector<double> &pars, QVector<double> &func, extraData_t *data){
-    if ( pars.size() == 0 ) return 1;
-    if ( pars.size() < PSF_MODEL_MOFFAT_MIN_NPARS) return 1;
-    if ( data == nullptr ) return 1;
+static void moffat(double* pars, double* func, int n_params, int n_func, void *ext_data){
+    if ( n_params == 0 ) return;
+    if ( n_params < PSF_MODEL_MOFFAT_MIN_NPARS) return;
+    if ( ext_data == nullptr ) return;
 
-    if ( data->x.size() == 0 ) return 1;
-    if ( data->x.size() != func.size() ) func.resize(data->x.size());
+    extraData_t *data = (extraData_t*) ext_data;
+    if ( data->x.size() == 0 ) return;
+    if ( data->x.size() != n_func ) return;
 
-    int n_poly = pars.size() - PSF_MODEL_MOFFAT_MIN_NPARS;
-
-    func.fill(0.0);
+    int n_poly = n_params - PSF_MODEL_MOFFAT_MIN_NPARS;
 
     // compute background polynom
     if ( n_poly ) {
-        poly(data->x.data(),pars.data()+PSF_MODEL_MOFFAT_MIN_NPARS,data->x.size(),n_poly,func.data());
+        poly(data->x.data(),pars+PSF_MODEL_MOFFAT_MIN_NPARS,data->x.size(),n_poly,func);
+    } else {
+        memset(func,0,n_func*sizeof(double));
     }
 
     // compute Moffat function
-    for ( int i = 0; i < func.size(); ++i ) {
+    for ( int i = 0; i < n_func; ++i ) {
         double term = pars[2]/2.0/sqrt(pow(2.0,1.0/pars[3])-1.0);
         double z2 = (data->x[i] - pars[1])/term;
         z2 *= z2;
 
         func[i] += pars[0]*pow(1.0+z2,-pars[3]);
     }
-
-    return 0;
 }
 
 /*
@@ -191,14 +186,16 @@ static int moffat(QVector<double> &pars, QVector<double> &func, extraData_t *dat
             phi is in radians
 
 */
-static int gauss2d(QVector<double> &pars, QVector<double> &func, extraData_t *data){
-    if ( pars.size() == 0 ) return 1;
-    if ( pars.size() < PSF_MODEL_GAUSS2D_MIN_NPARS) return 1;
-    if ( data == nullptr ) return 1;
+static void gauss2d(double* pars, double* func, int n_params, int n_func, void *ext_data){
+    if ( n_params == 0 ) return;
+    if ( n_params < PSF_MODEL_GAUSS2D_MIN_NPARS) return;
+    if ( ext_data == nullptr ) return;
 
-    if ( data->x.size() == 0 ) return 1;
-    if ( data->y.size() == 0 ) return 1;
-    if ( data->x.size() != data->y.size() ) return 1;
+    extraData_t *data = (extraData_t*) ext_data;
+    if ( data->x.size() == 0 ) return;
+    if ( data->x.size() != n_func ) return;
+    if ( data->y.size() == 0 ) return;
+    if ( data->x.size() != data->y.size() ) return;
 
 
     int n_poly;
@@ -206,22 +203,23 @@ static int gauss2d(QVector<double> &pars, QVector<double> &func, extraData_t *da
 
     if ( data->extra_params == nullptr ) n_poly = 0;
     else {
-        n_poly = pars.size() - PSF_MODEL_GAUSS2D_MIN_NPARS;
+        n_poly = n_params - PSF_MODEL_GAUSS2D_MIN_NPARS;
         degree = (int*)data->extra_params; // should be at least 2-element int-type array!!!
-        if ( n_poly < (degree[0]+1)*(degree[1]+1) ) return 1;
+        if ( n_poly < (degree[0]+1)*(degree[1]+1) ) return;
     }
 
-    if ( data->x.size() != func.size() ) func.resize(data->x.size());
-    func.fill(0.0);
+    if ( data->x.size() != n_func ) return;
 
     if ( n_poly ) { // compute 2D-polynom
-        poly2d(data->x.data(),data->y.data(),pars.data()+ PSF_MODEL_GAUSS2D_MIN_NPARS,data->x.size(),
-               degree[0],degree[1],func.data());
+        poly2d(data->x.data(),data->y.data(),pars+ PSF_MODEL_GAUSS2D_MIN_NPARS,data->x.size(),
+               degree[0],degree[1],func);
+    } else {
+        memset(func,0,n_func*sizeof(double));
     }
 
     double k = 4.0*log(2.0);
 
-    for ( int i = 0; i < func.size(); ++i ) {
+    for ( int i = 0; i < n_func; ++i ) {
         // first, rotate cordinate system
         double t = data->x[i] - pars[1];
         double y = data->y[i] - pars[2];
@@ -235,8 +233,6 @@ static int gauss2d(QVector<double> &pars, QVector<double> &func, extraData_t *da
 
         func[i] += pars[0]*exp(-k*z2);
     }
-
-    return 0;
 }
 
 
@@ -265,14 +261,16 @@ static int gauss2d(QVector<double> &pars, QVector<double> &func, extraData_t *da
             phi is in radians
 
 */
-static int moffat2d(QVector<double> &pars, QVector<double> &func, extraData_t *data){
-    if ( pars.size() == 0 ) return 1;
-    if ( pars.size() < PSF_MODEL_MOFFAT2D_MIN_NPARS) return 1;
-    if ( data == nullptr ) return 1;
+static void moffat2d(double* pars, double* func, int n_params, int n_func, void *ext_data){
+    if ( n_params == 0 ) return;
+    if ( n_params < PSF_MODEL_MOFFAT2D_MIN_NPARS) return;
+    if ( ext_data == nullptr ) return;
 
-    if ( data->x.size() == 0 ) return 1;
-    if ( data->y.size() == 0 ) return 1;
-    if ( data->x.size() != data->y.size() ) return 1;
+    extraData_t *data = (extraData_t*) ext_data;
+    if ( data->x.size() == 0 ) return;
+    if ( data->x.size() != n_func ) return;
+    if ( data->y.size() == 0 ) return;
+    if ( data->x.size() != data->y.size() ) return;
 
 
     int n_poly;
@@ -280,22 +278,23 @@ static int moffat2d(QVector<double> &pars, QVector<double> &func, extraData_t *d
 
     if ( data->extra_params == nullptr ) n_poly = 0;
     else {
-        n_poly = pars.size() - PSF_MODEL_MOFFAT2D_MIN_NPARS;
+        n_poly = n_params - PSF_MODEL_MOFFAT2D_MIN_NPARS;
         degree = (int*)data->extra_params; // should be at least 2-element int-type array!!!
-        if ( n_poly < (degree[0]+1)*(degree[1]+1) ) return 1;
+        if ( n_poly < (degree[0]+1)*(degree[1]+1) ) return;
     }
 
-    if ( data->x.size() != func.size() ) func.resize(data->x.size());
-    func.fill(0.0);
+    if ( data->x.size() != n_func ) return;
 
     if ( n_poly ) { // compute 2D-polynom
-        poly2d(data->x.data(),data->y.data(),pars.data()+ PSF_MODEL_MOFFAT2D_MIN_NPARS,data->x.size(),
-               degree[0],degree[1],func.data());
+        poly2d(data->x.data(),data->y.data(),pars+ PSF_MODEL_MOFFAT2D_MIN_NPARS,data->x.size(),
+               degree[0],degree[1],func);
+    } else {
+        memset(func,0,n_func*sizeof(double));
     }
 
     double k = 2.0*(pow(2.0,1.0/pars[5])-1.0);
 
-    for ( int i = 0; i < func.size(); ++i ) {
+    for ( int i = 0; i < n_func; ++i ) {
         // first, rotate cordinate system
         double t = data->x[i] - pars[1];
         double y = data->y[i] - pars[2];
@@ -310,7 +309,6 @@ static int moffat2d(QVector<double> &pars, QVector<double> &func, extraData_t *d
         func[i] += pars[0]*pow(1.0+k*z2,-pars[5]);
     }
 
-    return 0;
 }
 
 
@@ -464,15 +462,12 @@ void PSF_Model::fitData(QVector<double> &data)
         return;
     }
 
-    auto ff = [this]()->levmar_obj_func_t{return (compute(), [](double*, double*, int, int, void*){});};
+    ensureConstrains();
 
-//    auto fff = ff();
-
-    int ret = dlevmar_bc_dif([this]()->levmar_obj_func_t{return (compute(), [](double*, double*, int, int, void*){});}(),
-                             params.data(),data.data(),params.size(),data.size(),
+    int ret = dlevmar_bc_dif(modelFunc,params.data(),data.data(),params.size(),data.size(),
                              lowerBounds.data(),upperBounds.data(),NULL,maxIter,NULL,info,work_space,NULL,(void*) modelFuncExtraData);
 
-    qDebug() << "LM ret = " << ret;
+    qDebug() << "LM ret = " << ret << "; LM INFO: " << info[6];
     delete[] work_space;
 }
 
@@ -520,10 +515,8 @@ void PSF_Model::ensureConstrains()
 
 void PSF_Model::compute()
 {
-    int ret_code = modelFunc(params,modelFuncValue,modelFuncExtraData);
-    if ( ret_code ) {
-
-    }
+    if ( modelFuncExtraData->x.size() != modelFuncValue.size() ) modelFuncValue.resize(modelFuncExtraData->x.size());
+    modelFunc(params.data(),modelFuncValue.data(),params.size(),modelFuncValue.size(),(void*)modelFuncExtraData);
 }
 
 
@@ -576,8 +569,6 @@ void Gauss_Model::setLowerBounds(QVector<double> &lb)
         if ( N < i ) lowerBounds[--i] = PSF_MODEL_CENTER_DEFAULT_MIN;
         if ( N == 0 ) lowerBounds[0] = PSF_MODEL_AMP_DEFAULT_MIN;
     }
-
-    ensureConstrains();
 }
 
 
@@ -592,8 +583,6 @@ void Gauss_Model::setUpperBounds(QVector<double> &ub)
         if ( N < i ) upperBounds[--i] = PSF_MODEL_CENTER_DEFAULT_MAX;
         if ( N == 0 ) upperBounds[0] = PSF_MODEL_AMP_DEFAULT_MAX;
     }
-
-    ensureConstrains();
 }
 
             /*  Gauss2D_Model class realization  */
@@ -651,8 +640,6 @@ void Gauss2D_Model::setLowerBounds(QVector<double> &lb)
         if ( N < i ) lowerBounds[--i] = PSF_MODEL_CENTER_DEFAULT_MIN;
         if ( N == 0 ) lowerBounds[0] = PSF_MODEL_AMP_DEFAULT_MIN;
     }
-
-    ensureConstrains();
 }
 
 
@@ -727,8 +714,6 @@ void Moffat_Model::setLowerBounds(QVector<double> &lb)
         if ( N < i ) lowerBounds[--i] = PSF_MODEL_CENTER_DEFAULT_MIN;
         if ( N == 0 ) lowerBounds[0] = PSF_MODEL_AMP_DEFAULT_MIN;
     }
-
-    ensureConstrains();
 }
 
 
@@ -744,8 +729,6 @@ void Moffat_Model::setUpperBounds(QVector<double> &ub)
         if ( N < i ) upperBounds[--i] = PSF_MODEL_CENTER_DEFAULT_MAX;
         if ( N == 0 ) upperBounds[0] = PSF_MODEL_AMP_DEFAULT_MAX;
     }
-
-    ensureConstrains();
 }
 
             /*  Moffat2D_Model class realization  */
@@ -805,8 +788,6 @@ void Moffat2D_Model::setLowerBounds(QVector<double> &lb)
         if ( N < i ) lowerBounds[--i] = PSF_MODEL_CENTER_DEFAULT_MIN;
         if ( N == 0 ) lowerBounds[0] = PSF_MODEL_AMP_DEFAULT_MIN;
     }
-
-    ensureConstrains();
 }
 
 
@@ -825,6 +806,4 @@ void Moffat2D_Model::setUpperBounds(QVector<double> &ub)
         if ( N < i ) upperBounds[--i] = PSF_MODEL_CENTER_DEFAULT_MAX;
         if ( N == 0 ) upperBounds[0] = PSF_MODEL_AMP_DEFAULT_MAX;
     }
-
-    ensureConstrains();
 }
