@@ -97,3 +97,7 @@ double ExpParamsDialog::getExptime() const
 }
 
 
+QString ExpParamsDialog::getFilename() const
+{
+    return ui.filenameLineEdit->text();
+}

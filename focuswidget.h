@@ -11,7 +11,12 @@
 #include <QDoubleValidator>
 #include <QPointer>
 #include <QStringList>
+#include <QVector>
 
+
+//
+//  Pure virtual class
+//
 class FOCUSWIDGETSHARED_EXPORT FocusWidget: public QMainWindow
 {
 
@@ -38,8 +43,8 @@ protected slots:
 //    void resizeEvent(QResizeEvent *event);
 
 //protected:
-//    virtual int getImage(QString filename, double exp_time, void *exp_params = nullptr) = 0;
-//    virtual int moveFocus(double focus_value) = 0;
+    virtual int getImage(QString filename, double exp_time, void *exp_params = nullptr) = 0;
+    virtual int moveFocus(double focus_value) = 0;
 
 
 private slots:
@@ -51,13 +56,16 @@ private:
     ExpParamsDialog *expParamsDialog;
 
     QLabel *imagePointLabel;
+    QLabel *statusLabel;
 
     double startFocusValue;
     double stopFocusValue;
     double stepFocusValue;
+    double currentFocusValue;
     QDoubleValidator focusValueValidator;
 
     QStringList focusImages;
+    QVector<double> focusPos;
 };
 
 #endif // FOCUSWIDGET_H

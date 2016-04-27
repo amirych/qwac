@@ -34,6 +34,7 @@ public:
     void getArea(int *xmin, int *ymin, int *xmax, int *ymax) const;
     void getBin(int *xbin, int *ybin) const;
     double getExptime() const;
+    QString getFilename() const;
 
 private:
     Ui::ExpParamsForm ui;
