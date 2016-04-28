@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += widgets
+QT       += widgets concurrent
 
 TARGET = qwac
 TEMPLATE = lib
