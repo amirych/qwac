@@ -1,4 +1,5 @@
 #include "focuswidget.h"
+#include "psf_model.h"
 
 #include <cmath>
 #include <QDebug>
@@ -14,7 +15,8 @@
 
 FocusWidget::FocusWidget(double start_val, double stop_val, double step_val, QWidget *parent): QMainWindow(parent),
     currentFocusValue(0.0),
-    focusValueValidator(), focusImages(QStringList()), focusPos(QVector<double>())
+    focusValueValidator(), focusImages(QStringList()), focusPos(QVector<double>()),
+    selectedArea(QRectF(0,0,0,0))
 {
     ui.setupUi(this);
 
@@ -59,6 +61,11 @@ FocusWidget::FocusWidget(double start_val, double stop_val, double step_val, QWi
     connect(focussingSequenceThread,SIGNAL(started()),this, SLOT(sequenceIsStarting()));
     connect(focussingSequenceThread,SIGNAL(finished()),this,SLOT(sequenceIsFinished()));
     connect(focussingSequenceThread,SIGNAL(status(QString)),this,SLOT(setStatusMsg(QString)));
+
+    connect(focussingSequenceThread,SIGNAL(imageIsReady(QString)),ui.view,SLOT(load(QString)));
+
+    ui.focussingButton->setEnabled(false); // focussing button is not available still
+    connect(ui.view,SIGNAL(regionWasDeselected()),this,SLOT(clearSelectedArea()));
 
     // default root filename for image series
     QString filename = "foc";
@@ -122,19 +129,54 @@ void FocusWidget::showImagePoint(QPointF pos, double val)
 
 void FocusWidget::sequenceIsStarting()
 {
-    ui.focussingButton->setEnabled(false);
+//    ui.focussingButton->setEnabled(false);
     ui.focussingButton->setToolTip("The focussing sequence is still in progress");
     ui.expPropsButton->setEnabled(false);
+    disconnect(ui.view,SIGNAL(regionWasSelected(QRectF)),this,SLOT(setSelectedArea(QRectF)));
 }
 
 
 void FocusWidget::sequenceIsFinished()
 {
-    ui.focussingButton->setEnabled(true);
+//    ui.focussingButton->setEnabled(true);
     ui.focussingButton->setToolTip("Select an object and press the button");
     ui.expPropsButton->setEnabled(true);
+
+    connect(ui.view,SIGNAL(regionWasSelected(QRectF)),this,SLOT(setSelectedArea(QRectF)));
+
+    // show focussing image with possible near-optimal focus
+
+    int N_images = focussingSequenceThread->sequenceLength();
+    if ( N_images < focusPos.size() ) {
+        if ( !N_images ) { // no one image
+            setStatusMsg("No one image was obtained!!!");
+            return;
+        }
+
+        for (int i = N_images; i < focusPos.length(); ++i ) focusImages.removeLast();
+        focusPos.resize(N_images);
+    }
+
+    int N = focusPos.size()/2; // assume near-optimal focus is on image at middle of focussing images sequence
+
+    ui.view->load(focusImages[N]);
+
+    setStatusMsg("Select an object and push 'Focussing' button");
 }
 
+
+void FocusWidget::setSelectedArea(QRectF area)
+{
+    selectedArea = area;
+    ui.focussingButton->setEnabled(true);
+}
+
+void FocusWidget::clearSelectedArea()
+{
+    selectedArea.setWidth(0.0);
+    selectedArea.setHeight(0.0);
+    ui.focussingButton->setEnabled(false);
+}
 
             /*   PUBLIC SLOTS   */
 
@@ -159,6 +201,12 @@ void FocusWidget::run()
     stopFocusValue = ui.stopLineEdit->text().toDouble();
     stepFocusValue = ui.stepLineEdit->text().toDouble();
 
+    if ( stepFocusValue <= 0 ) {
+        if ( startFocusValue >= stopFocusValue ) return;
+    } else {
+        if ( startFocusValue >= stopFocusValue ) return;
+    }
+
     double n_focus_pos = floor((stopFocusValue - startFocusValue)/stepFocusValue);
 
     focusPos.clear();
@@ -177,31 +225,6 @@ void FocusWidget::run()
     focussingSequenceThread->initSequence(focusPos,focusImages,exp_time,nullptr);
 
     focussingSequenceThread->start();
-
-//    QString status_str;
-//    for ( int i = 0; i < focusPos.size(); ++i ) {
-//        status_str = QString(FOCUSWIDGET_MOVE_FOCUS_MSG_FMT).arg(focusPos[i],0,'f');
-//        statusLabel->setText(status_str);
-//        int ret = moveFocus(focusPos[i]);
-//        if ( ret ) {
-//            status_str = QString(FOCUSWIDGET_FAILURE_MSG).arg(ret);
-//            statusLabel->setText(status_str);
-//            return;
-//        } else {
-//            statusLabel->setText(FOCUSWIDGET_OK_MSG);
-//        }
-
-//        status_str = QString(FOCUSWIDGET_GET_IMAGE_MSG_FMT).arg(focusImages[i]);
-//        statusLabel->setText(status_str);
-//        ret = getImage(focusImages[i],exp_time);
-//        if ( ret ) {
-//            status_str = QString(FOCUSWIDGET_FAILURE_MSG).arg(ret);
-//            statusLabel->setText(status_str);
-//            return;
-//        } else {
-//            statusLabel->setText(FOCUSWIDGET_OK_MSG);
-//        }
-//    }
 }
 
 
@@ -215,6 +238,10 @@ void FocusWidget::stop()
 
 void FocusWidget::focussing()
 {
+    if ( selectedArea.isNull() ) return;
+
+    setStatusMsg("PSF model fitting ...");
+
 
 }
 
@@ -228,7 +255,7 @@ void FocusWidget::setExpProps()
 
 
 runSequence::runSequence(FocusWidget *parent): QThread(parent),
-    focusPos(QVector<double>()), focusImages(QStringList()), exp_time(0.0), expParams(nullptr)
+    focusPos(QVector<double>()), focusImages(QStringList()), exp_time(0.0), expParams(nullptr), n_images(0)
 {
     caller = parent;
 }
@@ -240,39 +267,73 @@ void runSequence::initSequence(QVector<double> &focuspos, QStringList &images, d
     focusImages = images;
     exp_time = exptime;
     expParams = exp_pars;
+
+    n_images = 0;
 }
 
+
+int runSequence::sequenceLength() const
+{
+    return n_images;
+}
 
 void runSequence::run()
 {
     QString status_str;
-    for ( int i = 0; i < focusPos.size(); ++i ) {
-        if ( isInterruptionRequested() ) return;
+    for ( n_images = 0; n_images < focusPos.size(); ++n_images ) {
+        if ( isInterruptionRequested() ) { // still no read images, so -1 for n_image
+            --n_images;
+            return;
+        }
 
-        status_str = QString(FOCUSWIDGET_MOVE_FOCUS_MSG_FMT).arg(focusPos[i],0,'f',1);
+        status_str = QString(FOCUSWIDGET_MOVE_FOCUS_MSG_FMT).arg(focusPos[n_images],0,'f',1);
         emit status(status_str);
-        int ret = caller->moveFocus(focusPos[i]);
+        int ret = caller->moveFocus(focusPos[n_images]);
         if ( ret ) {
             status_str = QString(FOCUSWIDGET_FAILURE_MSG).arg(ret);
             emit status(status_str);
+            --n_images; // still no read images, so -1 for n_image
             return;
         } else {
             status_str = FOCUSWIDGET_OK_MSG;
             emit status(status_str);
         }
 
-        if ( isInterruptionRequested() ) return;
+        if ( isInterruptionRequested() ) { // still no read images, so -1 for n_image
+            --n_images;
+            return;
+        }
 
-        status_str = QString(FOCUSWIDGET_GET_IMAGE_MSG_FMT).arg(focusImages[i]);
+        status_str = QString(FOCUSWIDGET_GET_IMAGE_MSG_FMT).arg(focusImages[n_images]);
         emit status(status_str);
-        ret = caller->getImage(focusImages[i],exp_time, expParams);
+        ret = caller->getImage(focusImages[n_images],exp_time, expParams);
         if ( ret ) {
             status_str = QString(FOCUSWIDGET_FAILURE_MSG).arg(ret);
             emit status(status_str);
+            --n_images; // still no read images, so -1 for n_image
             return;
         } else {
             status_str = FOCUSWIDGET_OK_MSG;
             emit status(status_str);
         }
     }
+}
+
+
+
+runFitting::runFitting(FocusWidget *parent): QThread(parent),
+  focusImages(QStringList()), fitArea(QRectF(0,0,0,0))
+{
+
+}
+
+
+void runFitting::initFitting(QStringList &foc_images, QRectF &fit_area)
+{
+
+}
+
+void runFitting::run()
+{
+
 }

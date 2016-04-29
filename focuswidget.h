@@ -16,6 +16,7 @@
 
 
 class runSequence; // just forward declaration
+class runFitting;
 
 //
 //  Pure virtual class
@@ -59,6 +60,8 @@ private slots:
     void showImagePoint(QPointF pos, double val);
     void sequenceIsStarting();
     void sequenceIsFinished();
+    void setSelectedArea(QRectF area);
+    void clearSelectedArea();
 
 private:
     Ui::FocusWidgetForm ui;
@@ -80,6 +83,7 @@ private:
     friend class runSequence;
 
     runSequence *focussingSequenceThread;
+    QRectF selectedArea;
 };
 
 
@@ -91,14 +95,31 @@ public:
     runSequence(FocusWidget* parent);
     void run();
     void initSequence(QVector<double> &focuspos, QStringList &images, double exptime, void *exp_pars);
+    int sequenceLength() const; // return number of successfuly obtained images
 signals:
     void status(QString msg);
+    void imageIsReady(QString filename);
 private:
     FocusWidget *caller;
     QVector<double> focusPos;
     QStringList focusImages;
     double exp_time;
     void *expParams;
+
+    int n_images;
+};
+
+
+class runFitting: public QThread
+{
+    Q_OBJECT
+public:
+    runFitting(FocusWidget *parent);
+    void initFitting(QStringList &foc_images, QRectF &fit_area);
+    void run();
+private:
+    QStringList focusImages;
+    QRectF fitArea;
 };
 
 #endif // FOCUSWIDGET_H

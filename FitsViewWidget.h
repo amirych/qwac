@@ -67,6 +67,9 @@ public:
     void incrementZoom(const qreal zoom_inc);
     qreal getZoom() const;
 
+    QRectF getSelectedArea() const;
+    void getSelectedSubImage(std::vector<double> &subImage);
+
 public slots:
     void load(const QString fits_filename, const bool autoscale = true);
     void rescale(const double lcuts, const double hcuts);

@@ -530,6 +530,31 @@ void FitsViewWidget::zoomFitInView()
 }
 
 
+QRectF FitsViewWidget::getSelectedArea() const
+{
+    if ( !rubberBandIsShown ) return QRectF(0,0,0,0); // null rectangle
+    if ( !currentScaledImage_buffer ) return QRectF(0,0,0,0); // null rectangle
+
+    QRectF selectedArea = fitsImagePixmapItem->mapFromScene(rubberBand->rect()).boundingRect();
+
+    // convert to FITS notation
+    selectedArea.setX(selectedArea.x()+0.5);
+    selectedArea.setY(selectedArea.y()+0.5);
+
+    return selectedArea;
+}
+
+
+void FitsViewWidget::getSelectedSubImage(std::vector<double> &subImage)
+{
+    if ( !rubberBandIsShown ) return;
+    if ( !currentScaledImage_buffer ) return;
+
+    QRectF region = fitsImagePixmapItem->mapFromScene(rubberBand->rect()).boundingRect();
+    getSubImage(subImage,region);
+
+}
+
         /*  PROTECTED METHODS  */
 
 void FitsViewWidget::mouseMoveEvent(QMouseEvent *event)
