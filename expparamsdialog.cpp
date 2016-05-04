@@ -97,6 +97,12 @@ double ExpParamsDialog::getExptime() const
 }
 
 
+int ExpParamsDialog::getExpNum() const
+{
+    return ui.expNumSpinBox->value();
+}
+
+
 QString ExpParamsDialog::getFilename() const
 {
     return ui.filenameLineEdit->text();

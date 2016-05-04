@@ -319,6 +319,7 @@ static QVector<double> emptyVector;
 
 
 PSF_Model::PSF_Model(psfModelFunc_t func, QVector<double> &pars, extraData_t *extra_data):
+    modelName("abstract"),
     modelFunc(func), modelFuncExtraData(extra_data), params(pars), modelFuncValue(emptyVector),
     maxIter(PSF_MODEL_DEFAULT_ITMAX)
 {
@@ -336,10 +337,10 @@ PSF_Model::PSF_Model(psfModelFunc_t func):
 }
 
 
-PSF_Model::~PSF_Model()
-{
-    delete modelFuncExtraData;
-}
+//PSF_Model::~PSF_Model()
+//{
+//    delete modelFuncExtraData;
+//}
 
 
 void PSF_Model::setParams(QVector<double> &pars, extraData_t *extra_data)
@@ -528,6 +529,7 @@ Gauss_Model::Gauss_Model(QVector<double> &pars, QVector<double> &lb, QVector<dou
     setParams(pars);
     setLowerBounds(lb);
     setUpperBounds(ub);
+    modelName = "Gauss";
 }
 
 
@@ -593,6 +595,7 @@ Gauss2D_Model::Gauss2D_Model(QVector<double> &pars, QVector<double> &lb, QVector
     setParams(pars);
     setLowerBounds(lb);
     setUpperBounds(ub);
+    modelName = "Gauss2D";
 }
 
 
@@ -671,6 +674,7 @@ Moffat_Model::Moffat_Model(QVector<double> &pars, QVector<double> &lb, QVector<d
     setParams(pars);
     setLowerBounds(lb);
     setUpperBounds(ub);
+    modelName = "Moffat";
 }
 
 
@@ -739,6 +743,7 @@ Moffat2D_Model::Moffat2D_Model(QVector<double> &pars, QVector<double> &lb, QVect
     setParams(pars);
     setLowerBounds(lb);
     setUpperBounds(ub);
+    modelName = "Moffat2D";
 }
 
 

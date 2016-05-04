@@ -6,6 +6,7 @@
 
 #include "FitsViewWidget.h"
 #include "expparamsdialog.h"
+#include "psf_model.h"
 
 #include <QString>
 #include <QDoubleValidator>
@@ -14,12 +15,33 @@
 #include <QVector>
 #include <QThread>
 
+static QVector<double> empty_vector;
+
 
 class runSequence; // just forward declaration
-class runFitting;
+
+class runFitting: public QThread
+{
+    Q_OBJECT
+public:
+    enum FitError{OK, InvalidFilename, MemoryAllocationError, FitsError};
+    runFitting(QWidget *parent);
+    void initFitting(PSF_Model *psf_model, QStringList &foc_images, QRectF &fit_area);
+    void run();
+signals:
+    void fittingParams(QVector<double> params);
+    void fittingComplete();
+    void error(runFitting::FitError err);
+private:
+    QStringList focusImages;
+    QRectF fitArea;
+    PSF_Model* psfModel;
+};
+
+
 
 //
-//  Pure virtual class
+//  Pure virtual class FocusWidget
 //
 class FOCUSWIDGETSHARED_EXPORT FocusWidget: public QMainWindow
 {
@@ -34,6 +56,7 @@ public:
 
     void setInitSetup(double start_val, double stop_val, double step_val);
     void setExpInitSetup(QString &rootfilename, QStringList &rate, int rate_index, int xbin, int ybin);
+    void setFittingSetup(QVector<double> &init_pars, QVector<double> &lb = empty_vector, QVector<double> &ub = empty_vector);
 
     void setFocusValueRange(double min_val, double max_val, int decimals = 1);
 
@@ -62,6 +85,9 @@ private slots:
     void sequenceIsFinished();
     void setSelectedArea(QRectF area);
     void clearSelectedArea();
+    void fittingComplete();
+    void fittingParams(QVector<double> params);
+    void fittingError(runFitting::FitError err);
 
 private:
     Ui::FocusWidgetForm ui;
@@ -80,10 +106,18 @@ private:
     QStringList focusImages;
     QVector<double> focusPos;
 
+    PSF_Model *psfModel;
+    QVector<double> fitParams;
+    QVector<double> fitLowerBounds;
+    QVector<double> fitUpperBounds;
+    QVector<double> fitFWHM;
+
     friend class runSequence;
 
     runSequence *focussingSequenceThread;
     QRectF selectedArea;
+
+    runFitting *runFittingThread;
 };
 
 
@@ -109,17 +143,5 @@ private:
     int n_images;
 };
 
-
-class runFitting: public QThread
-{
-    Q_OBJECT
-public:
-    runFitting(FocusWidget *parent);
-    void initFitting(QStringList &foc_images, QRectF &fit_area);
-    void run();
-private:
-    QStringList focusImages;
-    QRectF fitArea;
-};
 
 #endif // FOCUSWIDGET_H

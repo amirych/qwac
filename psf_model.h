@@ -44,7 +44,7 @@ public:
     PSF_Model(psfModelFunc_t func);
     PSF_Model(psfModelFunc_t func, QVector<double> &pars, extraData_t *extra_data = nullptr);
 
-    ~PSF_Model();
+//    ~PSF_Model();
 
     virtual void setParams(QVector<double> &pars, extraData_t *extra_data = nullptr);
     virtual void setLowerBounds(QVector<double> &lb);
@@ -73,6 +73,7 @@ public:
 //    void objective_function(double *pars, double *func, int n_pars, int n_func, void* data);
 
 protected:
+    QString modelName;
     psfModelFunc_t modelFunc;
     extraData_t* modelFuncExtraData;
 
