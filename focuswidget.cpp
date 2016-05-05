@@ -15,12 +15,31 @@
 #define FOCUSWIDGET_FAILURE_MSG "<b>Operation failed! (exit code: [%1])</b>"
 
 
+#define FOCUSWIDGET_FWHM_FITTING_DEGREE 3 // parabola
+
+// parabola function definition (synopsis is according to levmar package requirements)
+// ext_data is interpreted as pointer to double array with independant variable (must be of length not lesser than n_func)
+// pars is vector of coefficients of polynom in form [a0,a1,a2] and y = a0 + a1*x + a2*x^2
+static void parabola_func(double* pars, double* func, int n_params, int n_func, void *ext_data)
+{
+    if ( ext_data == nullptr || pars = nullptr || func == nullptr ) return;
+    if ( n_params <= 0 || n_func <= 0 ) return;
+
+    double* x = (double*) ext_data;
+
+    for ( int i = 0; i < n_func; ++i ) {
+        func[i] = pars[0] + pars[1]*x[i] + pars[2]*x[i]*x[i];
+    }
+}
+
+
+
 FocusWidget::FocusWidget(double start_val, double stop_val, double step_val, QWidget *parent): QMainWindow(parent),
     currentFocusValue(0.0),
     focusValueValidator(), focusImages(QStringList()), focusPos(QVector<double>()),
     psfModel(nullptr),
     fitParams(empty_vector), fitLowerBounds(empty_vector), fitUpperBounds(empty_vector),
-    fitFWHM(empty_vector),
+    fitFWHM(empty_vector), fitFWHMCoeffs(QVector<double>(FOCUSWIDGET_FWHM_FITTING_DEGREE)),
     selectedArea(QRectF(0,0,0,0))
 {
     ui.setupUi(this);
@@ -191,6 +210,53 @@ void FocusWidget::clearSelectedArea()
 void FocusWidget::fittingComplete()
 {
     // fit parabola to focus-FWHM relation
+
+    QVector<double> lb(FOCUSWIDGET_FWHM_FITTING_DEGREE);
+    QVector<double> ub(FOCUSWIDGET_FWHM_FITTING_DEGREE);
+
+    QVector xFWHM, yFWHM;
+
+    // set constrains
+    for ( int i = 0; i < FOCUSWIDGET_FWHM_FITTING_DEGREE; ++i ) {
+        lb[i] = -std::numeric_limits<double>::infinity();
+        ub[i] = std::numeric_limits<double>::infinity();
+    }
+
+    // polynom coefficient of x^2 (for parabola) term must be greater than 0
+    lb[FOCUSWIDGET_FWHM_FITTING_DEGREE-1] = 0.0;
+
+    // set initial coefficients
+    fitFWHMCoeffs[FOCUSWIDGET_FWHM_FITTING_DEGREE-1] = 1.0;
+    for ( int i = 0; i < FOCUSWIDGET_FWHM_FITTING_DEGREE-2; ++i ) fitFWHMCoeffs[i] = 0.0;
+
+    double *work_space = nullptr;
+
+    int ret;
+
+    try {
+        work_space = new double[LM_BC_DIF_WORKSZ(3,focusPos.size())];
+        for ( int i = 0; i < focusPos.size(); ++i ) {
+            xFWHM.append(fitFWHM[i*2]);
+            yFWHM.append(fitFWHM[i*2+1]);
+        }
+    } catch (std::bad_alloc &ex) {
+        setStatusMsg("Memory allocation error occured!!!");
+        return;
+    }
+
+
+    ret = dlevmar_bc_dif(parabola_func,fitFWHMCoeffs.data(),xFWHM.data(),FOCUSWIDGET_FWHM_FITTING_DEGREE,xFWHM.size()),
+                         lb.data(),ub.data(),NULL,100,NULL,NULL,work_space,NULL,(void*)focusPos.data());
+
+    delete[] work_space;
+
+    if ( ret < 0 ) {
+        setStatusMsg("Cannot fit focusPos - FWHM relation!!!");
+        return;
+    }
+
+    // plot the results
+
 }
 
 

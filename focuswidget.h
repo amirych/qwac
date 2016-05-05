@@ -111,6 +111,7 @@ private:
     QVector<double> fitLowerBounds;
     QVector<double> fitUpperBounds;
     QVector<double> fitFWHM;
+    QVector<double> fitFWHMCoeffs;
 
     friend class runSequence;
 
