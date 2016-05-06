@@ -70,6 +70,9 @@ public:
     void setMaxIter(int max_iter);
     int getMaxIter() const;
 
+    void setPsfModelName(QString &name);
+    QString getPsfModelName() const;
+
 //    void objective_function(double *pars, double *func, int n_pars, int n_func, void* data);
 
 protected:

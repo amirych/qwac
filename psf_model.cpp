@@ -450,6 +450,18 @@ int PSF_Model::getMaxIter() const
 }
 
 
+void PSF_Model::setPsfModelName(QString &name)
+{
+    modelName = name;
+}
+
+
+QString PSF_Model::getPsfModelName() const
+{
+    return modelName;
+}
+
+
 void PSF_Model::fitData(QVector<double> &data)
 {
     if ( data.size() != modelFuncExtraData->x.size() ) return;

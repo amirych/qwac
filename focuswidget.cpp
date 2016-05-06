@@ -245,7 +245,7 @@ void FocusWidget::fittingComplete()
     }
 
 
-    ret = dlevmar_bc_dif(parabola_func,fitFWHMCoeffs.data(),xFWHM.data(),FOCUSWIDGET_FWHM_FITTING_DEGREE,xFWHM.size()),
+    ret = dlevmar_bc_dif(parabola_func,fitFWHMCoeffs.data(),xFWHM.data(),FOCUSWIDGET_FWHM_FITTING_DEGREE,xFWHM.size(),
                          lb.data(),ub.data(),NULL,100,NULL,NULL,work_space,NULL,(void*)focusPos.data());
 
     delete[] work_space;
