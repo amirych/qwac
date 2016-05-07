@@ -1,14 +1,20 @@
 #include "expparamsdialog.h"
 
-ExpParamsDialog::ExpParamsDialog(QWidget *parent): QDialog(parent),
-    areaValidator(EXPPARAMSDIALOG_AREA_MIN,EXPPARAMSDIALOG_AREA_MAX,this)
+ExpParamsDialog::ExpParamsDialog(QWidget *parent): QDialog(parent)
+//  ,areaValidator(EXPPARAMSDIALOG_AREA_MIN,EXPPARAMSDIALOG_AREA_MAX,this)
 {
     ui.setupUi(this);
 
-    ui.xstartLineEdit->setValidator(&areaValidator);
-    ui.xendLineEdit->setValidator(&areaValidator);
-    ui.ystartLineEdit->setValidator(&areaValidator);
-    ui.yendLineEdit->setValidator(&areaValidator);
+//    ui.xstartLineEdit->setValidator(&areaValidator);
+//    ui.xendLineEdit->setValidator(&areaValidator);
+//    ui.ystartLineEdit->setValidator(&areaValidator);
+//    ui.yendLineEdit->setValidator(&areaValidator);
+
+    ui.xminSpinBox->setRange(EXPPARAMSDIALOG_AREA_MIN,EXPPARAMSDIALOG_AREA_MAX);
+    ui.xmaxSpinBox->setRange(EXPPARAMSDIALOG_AREA_MIN,EXPPARAMSDIALOG_AREA_MAX);
+
+    ui.yminSpinBox->setRange(EXPPARAMSDIALOG_AREA_MIN,EXPPARAMSDIALOG_AREA_MAX);
+    ui.ymaxSpinBox->setRange(EXPPARAMSDIALOG_AREA_MIN,EXPPARAMSDIALOG_AREA_MAX);
 
     ui.xbinSpinBox->setRange(EXPPARAMSDIALOG_BIN_MIN,EXPPARAMSDIALOG_BIN_MAX);
     ui.ybinSpinBox->setRange(EXPPARAMSDIALOG_BIN_MIN,EXPPARAMSDIALOG_BIN_MAX);
@@ -22,6 +28,15 @@ ExpParamsDialog::ExpParamsDialog(QWidget *parent): QDialog(parent),
     init(filename,rate_list,0,EXPPARAMSDIALOG_BIN_MIN,EXPPARAMSDIALOG_BIN_MIN);
 
     setArea(EXPPARAMSDIALOG_AREA_MIN,EXPPARAMSDIALOG_AREA_MIN,EXPPARAMSDIALOG_AREA_MAX,EXPPARAMSDIALOG_AREA_MAX);
+
+    connect(ui.xminSpinBox, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+          [=](int i){ if (ui.xmaxSpinBox->value() < i) ui.xmaxSpinBox->setValue(i);});
+    connect(ui.xmaxSpinBox, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+          [=](int i){ if (ui.xminSpinBox->value() > i) ui.xminSpinBox->setValue(i);});
+    connect(ui.yminSpinBox, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+          [=](int i){ if (ui.ymaxSpinBox->value() < i) ui.ymaxSpinBox->setValue(i);});
+    connect(ui.ymaxSpinBox, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+          [=](int i){ if (ui.yminSpinBox->value() > i) ui.yminSpinBox->setValue(i);});
 }
 
 
@@ -40,19 +55,13 @@ void ExpParamsDialog::init(QString &filename, QStringList &items, int index, int
 
 void ExpParamsDialog::setArea(int xmin, int ymin, int xmax, int ymax)
 {
-    QString val;
+    ui.xminSpinBox->setValue(xmin);
 
-    val = QString::number(xmin);
-    ui.xstartLineEdit->setText(val);
+    ui.yminSpinBox->setValue(ymin);
 
-    val = QString::number(ymin);
-    ui.ystartLineEdit->setText(val);
+    ui.xmaxSpinBox->setValue(xmax);
 
-    val = QString::number(xmax);
-    ui.xendLineEdit->setText(val);
-
-    val = QString::number(ymax);
-    ui.yendLineEdit->setText(val);
+    ui.ymaxSpinBox->setValue(ymax);
 }
 
 
@@ -71,16 +80,26 @@ void ExpParamsDialog::setBinRange(int min, int max)
 
 void ExpParamsDialog::setAreaRange(int min, int max)
 {
-    areaValidator.setRange(min,max);
+    ui.xminSpinBox->setRange(min,max);
+    ui.xmaxSpinBox->setRange(min,max);
+    ui.yminSpinBox->setRange(min,max);
+    ui.ymaxSpinBox->setRange(min,max);
 }
 
 
 void ExpParamsDialog::getArea(int *xmin, int *ymin, int *xmax, int *ymax) const
 {
-    *xmin = ui.xstartLineEdit->text().toInt();
-    *xmax = ui.xendLineEdit->text().toInt();
-    *ymin = ui.ystartLineEdit->text().toInt();
-    *ymax = ui.yendLineEdit->text().toInt();
+    if ( ui.frameGeometryGroupBox->isChecked() ) {
+        *xmin = ui.xminSpinBox->value();
+        *xmax = ui.xmaxSpinBox->value();
+        *ymin = ui.yminSpinBox->value();
+        *ymax = ui.ymaxSpinBox->value();
+    } else { // full frame
+        *xmin = ui.xminSpinBox->minimum();
+        *xmax = ui.xmaxSpinBox->maximum();
+        *ymin = ui.yminSpinBox->minimum();
+        *ymax = ui.ymaxSpinBox->maximum();
+    }
 }
 
 

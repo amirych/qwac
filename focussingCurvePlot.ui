@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>791</width>
-    <height>857</height>
+    <width>940</width>
+    <height>702</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -37,9 +37,16 @@
         <property name="frameShadow">
          <enum>QFrame::Raised</enum>
         </property>
-        <layout class="QVBoxLayout" name="verticalLayout">
+        <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
-          <widget class="QwtPlot" name="focusCurvePlot">
+          <widget class="QwtPlot" name="focusCurvePlotX">
+           <property name="autoReplot">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QwtPlot" name="focusCurvePlotY">
            <property name="autoReplot">
             <bool>false</bool>
            </property>
@@ -53,7 +60,7 @@
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
           <horstretch>0</horstretch>
-          <verstretch>1</verstretch>
+          <verstretch>2</verstretch>
          </sizepolicy>
         </property>
         <property name="verticalScrollBarPolicy">
@@ -67,8 +74,8 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>759</width>
-           <height>126</height>
+           <width>908</width>
+           <height>175</height>
           </rect>
          </property>
         </widget>
@@ -93,12 +100,15 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="bestFocusLineEdit">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
+      <widget class="QDoubleSpinBox" name="bestFocusSpinBox">
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+       <property name="decimals">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <double>10000.000000000000000</double>
        </property>
       </widget>
      </item>
@@ -147,6 +157,7 @@
    <class>QwtPlot</class>
    <extends>QFrame</extends>
    <header>qwt_plot.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

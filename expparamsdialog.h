@@ -13,7 +13,7 @@
 #define EXPPARAMSDIALOG_EXPTIME_MAX 1.0E6
 #define EXPPARAMSDIALOG_BIN_MIN 1
 #define EXPPARAMSDIALOG_BIN_MAX 100
-#define EXPPARAMSDIALOG_AREA_MIN 1
+#define EXPPARAMSDIALOG_AREA_MIN 1      // by defaults follow the FITS coordinate system standard (origin is in [1,1])
 #define EXPPARAMSDIALOG_AREA_MAX 100000
 
 
@@ -40,7 +40,7 @@ public:
 private:
     Ui::ExpParamsForm ui;
 
-    QIntValidator areaValidator;
+//    QIntValidator areaValidator;
 };
 
 #endif // EXPPARAMSDIALOG_H

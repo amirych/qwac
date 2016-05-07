@@ -14,15 +14,16 @@
 #define FOCUSWIDGET_OK_MSG "<b>  OK</b>"
 #define FOCUSWIDGET_FAILURE_MSG "<b>Operation failed! (exit code: [%1])</b>"
 
+#define FOCUSWIDGET_FWHM_FITTING_ORDER 3 // parabola
 
-#define FOCUSWIDGET_FWHM_FITTING_DEGREE 3 // parabola
+static QString default_rootfilename = "foc";
 
 // parabola function definition (synopsis is according to levmar package requirements)
 // ext_data is interpreted as pointer to double array with independant variable (must be of length not lesser than n_func)
 // pars is vector of coefficients of polynom in form [a0,a1,a2] and y = a0 + a1*x + a2*x^2
 static void parabola_func(double* pars, double* func, int n_params, int n_func, void *ext_data)
 {
-    if ( ext_data == nullptr || pars = nullptr || func == nullptr ) return;
+    if ( ext_data == nullptr || pars == nullptr || func == nullptr ) return;
     if ( n_params <= 0 || n_func <= 0 ) return;
 
     double* x = (double*) ext_data;
@@ -34,12 +35,12 @@ static void parabola_func(double* pars, double* func, int n_params, int n_func, 
 
 
 
-FocusWidget::FocusWidget(double start_val, double stop_val, double step_val, QWidget *parent): QMainWindow(parent),
+FocusWidget::FocusWidget(QString &root_filename, double start_val, double stop_val, double step_val, QWidget *parent): QMainWindow(parent),
     currentFocusValue(0.0),
-    focusValueValidator(), focusImages(QStringList()), focusPos(QVector<double>()),
+    focusImages(QStringList()), focusPos(QVector<double>()),
     psfModel(nullptr),
     fitParams(empty_vector), fitLowerBounds(empty_vector), fitUpperBounds(empty_vector),
-    fitFWHM(empty_vector), fitFWHMCoeffs(QVector<double>(FOCUSWIDGET_FWHM_FITTING_DEGREE)),
+    fitFWHM(empty_vector), fitFWHMCoeffs(QVector<double>(2*FOCUSWIDGET_FWHM_FITTING_ORDER)),
     selectedArea(QRectF(0,0,0,0))
 {
     ui.setupUi(this);
@@ -53,11 +54,11 @@ FocusWidget::FocusWidget(double start_val, double stop_val, double step_val, QWi
 //    this->setMouseTracking(true);
     ui.viewFrame->setFocusProxy(ui.view);
 
-    setInitSetup(start_val, stop_val, step_val);
+    setInitSetup(root_filename, start_val, stop_val, step_val);
 
-    ui.startLineEdit->setValidator(&focusValueValidator);
-    ui.stopLineEdit->setValidator(&focusValueValidator);
-    ui.stepLineEdit->setValidator(&focusValueValidator);
+//    ui.startLineEdit->setValidator(&focusValueValidator);
+//    ui.stopLineEdit->setValidator(&focusValueValidator);
+//    ui.stepLineEdit->setValidator(&focusValueValidator);
 
     expParamsDialog = new ExpParamsDialog(this);
 
@@ -86,14 +87,13 @@ FocusWidget::FocusWidget(double start_val, double stop_val, double step_val, QWi
     connect(runFittingThread,SIGNAL(fittingParams(QVector<double>)),this,SLOT(fittingParams(QVector<double>)));
     connect(runFittingThread,SIGNAL(error(runFitting::FitError)),this,SLOT(fittingError(runFitting::FitError)));
 
-    // default root filename for image series
-    QString filename = "foc";
+    // defaults for image series
     QStringList rates;
     rates << "Normal";
-    expParamsDialog->init(filename,rates,0,1,1);
+    expParamsDialog->init(root_filename,rates,0,1,1);
 }
 
-FocusWidget::FocusWidget(QWidget *parent): FocusWidget(0.0,0.0,0.0,parent)
+FocusWidget::FocusWidget(QWidget *parent): FocusWidget(default_rootfilename, 0.0,0.0,0.0,parent)
 {
 }
 
@@ -107,18 +107,14 @@ FocusWidget::~FocusWidget()
 
             /*   PUBLIC METHODS   */
 
-void FocusWidget::setInitSetup(double start_val, double stop_val, double step_val)
+void FocusWidget::setInitSetup(QString &root_filename, double start_val, double stop_val, double step_val)
 {
-    QString val;
+    ui.rootnameLineEdit->setText(root_filename);
+    ui.startFocusSpinBox->setValue(start_val);
 
-    val.setNum(start_val);
-    ui.startLineEdit->setText(val);
+    ui.stopFocusSpinBox->setValue(stop_val);
 
-    val.setNum(stop_val);
-    ui.stopLineEdit->setText(val);
-
-    val.setNum(step_val);
-    ui.stepLineEdit->setText(val);
+    ui.stepFocusSpinBox->setValue(step_val);
 
     startFocusValue = start_val;
     stopFocusValue = stop_val;
@@ -128,7 +124,16 @@ void FocusWidget::setInitSetup(double start_val, double stop_val, double step_va
 
 void FocusWidget::setFocusValueRange(double min_val, double max_val, int decimals)
 {
-    focusValueValidator.setRange(min_val, max_val, decimals);
+//    focusValueValidator.setRange(min_val, max_val, decimals);
+
+    ui.startFocusSpinBox->setRange(min_val, max_val);
+    ui.startFocusSpinBox->setDecimals(decimals);
+
+    ui.stopFocusSpinBox->setRange(min_val, max_val);
+    ui.stopFocusSpinBox->setDecimals(decimals);
+
+    ui.stepFocusSpinBox->setRange(min_val, max_val);
+    ui.stepFocusSpinBox->setDecimals(decimals);
 }
 
 
@@ -211,30 +216,31 @@ void FocusWidget::fittingComplete()
 {
     // fit parabola to focus-FWHM relation
 
-    QVector<double> lb(FOCUSWIDGET_FWHM_FITTING_DEGREE);
-    QVector<double> ub(FOCUSWIDGET_FWHM_FITTING_DEGREE);
+    QVector<double> lb(FOCUSWIDGET_FWHM_FITTING_ORDER);
+    QVector<double> ub(FOCUSWIDGET_FWHM_FITTING_ORDER);
 
-    QVector xFWHM, yFWHM;
+    QVector<double> xFWHM, yFWHM;
 
     // set constrains
-    for ( int i = 0; i < FOCUSWIDGET_FWHM_FITTING_DEGREE; ++i ) {
+    for ( int i = 0; i < FOCUSWIDGET_FWHM_FITTING_ORDER; ++i ) {
         lb[i] = -std::numeric_limits<double>::infinity();
         ub[i] = std::numeric_limits<double>::infinity();
     }
 
     // polynom coefficient of x^2 (for parabola) term must be greater than 0
-    lb[FOCUSWIDGET_FWHM_FITTING_DEGREE-1] = 0.0;
+    lb[FOCUSWIDGET_FWHM_FITTING_ORDER-1] = 0.0;
 
     // set initial coefficients
-    fitFWHMCoeffs[FOCUSWIDGET_FWHM_FITTING_DEGREE-1] = 1.0;
-    for ( int i = 0; i < FOCUSWIDGET_FWHM_FITTING_DEGREE-2; ++i ) fitFWHMCoeffs[i] = 0.0;
+    for ( int i = 0; i < 2*FOCUSWIDGET_FWHM_FITTING_ORDER; ++i ) fitFWHMCoeffs[i] = 0.0;
+    fitFWHMCoeffs[FOCUSWIDGET_FWHM_FITTING_ORDER-1] = 1.0; // along X-axis
+    fitFWHMCoeffs[2*FOCUSWIDGET_FWHM_FITTING_ORDER-1] = 1.0; // along Y-axis
 
     double *work_space = nullptr;
 
     int ret;
 
     try {
-        work_space = new double[LM_BC_DIF_WORKSZ(3,focusPos.size())];
+        work_space = new double[LM_BC_DIF_WORKSZ(FOCUSWIDGET_FWHM_FITTING_ORDER,focusPos.size())];
         for ( int i = 0; i < focusPos.size(); ++i ) {
             xFWHM.append(fitFWHM[i*2]);
             yFWHM.append(fitFWHM[i*2+1]);
@@ -245,15 +251,29 @@ void FocusWidget::fittingComplete()
     }
 
 
-    ret = dlevmar_bc_dif(parabola_func,fitFWHMCoeffs.data(),xFWHM.data(),FOCUSWIDGET_FWHM_FITTING_DEGREE,xFWHM.size(),
+    // fit relation for FWHM along X-axis
+    ret = dlevmar_bc_dif(parabola_func,fitFWHMCoeffs.data(),xFWHM.data(),FOCUSWIDGET_FWHM_FITTING_ORDER,xFWHM.size(),
                          lb.data(),ub.data(),NULL,100,NULL,NULL,work_space,NULL,(void*)focusPos.data());
 
-    delete[] work_space;
 
     if ( ret < 0 ) {
-        setStatusMsg("Cannot fit focusPos - FWHM relation!!!");
+        setStatusMsg("Cannot fit 'focusPos - FWHM' relation!!!");
+        delete[] work_space;
         return;
     }
+
+    // fit relation for FWHM along Y-axis
+    ret = dlevmar_bc_dif(parabola_func,fitFWHMCoeffs.data()+FOCUSWIDGET_FWHM_FITTING_ORDER,yFWHM.data(),FOCUSWIDGET_FWHM_FITTING_ORDER,yFWHM.size(),
+                         lb.data(),ub.data(),NULL,100,NULL,NULL,work_space,NULL,(void*)focusPos.data());
+
+
+    if ( ret < 0 ) {
+        setStatusMsg("Cannot fit 'focusPos - FWHM' relation!!!");
+        delete[] work_space;
+        return;
+    }
+
+    delete[] work_space;
 
     // plot the results
 
@@ -296,9 +316,9 @@ void FocusWidget::about_quit()
 
 void FocusWidget::run()
 {
-    startFocusValue = ui.startLineEdit->text().toDouble();
-    stopFocusValue = ui.stopLineEdit->text().toDouble();
-    stepFocusValue = ui.stepLineEdit->text().toDouble();
+    startFocusValue = ui.startFocusSpinBox->value();
+    stopFocusValue = ui.stopFocusSpinBox->value();
+    stepFocusValue = ui.stepFocusSpinBox->value();
 
     if ( stepFocusValue <= 0 ) {
         if ( startFocusValue >= stopFocusValue ) return;

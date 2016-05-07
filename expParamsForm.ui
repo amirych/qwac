@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Dialog</class>
- <widget class="QDialog" name="Dialog">
+ <class>ExpParamsForm</class>
+ <widget class="QDialog" name="ExpParamsForm">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -296,35 +296,13 @@
     </widget>
    </item>
   </layout>
-  <zorder>frame</zorder>
-  <zorder>buttonBox</zorder>
-  <zorder>filenameLabel</zorder>
-  <zorder>filenameLineEdit</zorder>
-  <zorder>expTimelabel</zorder>
-  <zorder>expTimeSpinBox</zorder>
-  <zorder>expNumLabel</zorder>
-  <zorder>expNumSpinBox</zorder>
-  <zorder>rateLabel</zorder>
-  <zorder>rateComboBox</zorder>
-  <zorder>xminLabel</zorder>
-  <zorder>xminSpinBox</zorder>
-  <zorder>xmaxLabel</zorder>
-  <zorder>xmaxSpinBox</zorder>
-  <zorder>yminLabel</zorder>
-  <zorder>yminSpinBox</zorder>
-  <zorder>ymaxLabel</zorder>
-  <zorder>ymaxSpinBox</zorder>
-  <zorder>xbinLabel</zorder>
-  <zorder>xbinSpinBox</zorder>
-  <zorder>ybinLabel</zorder>
-  <zorder>ybinSpinBox</zorder>
  </widget>
  <resources/>
  <connections>
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>Dialog</receiver>
+   <receiver>ExpParamsForm</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -340,7 +318,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>Dialog</receiver>
+   <receiver>ExpParamsForm</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

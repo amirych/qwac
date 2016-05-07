@@ -50,11 +50,11 @@ class FOCUSWIDGETSHARED_EXPORT FocusWidget: public QMainWindow
 
 public:
     FocusWidget(QWidget *parent = 0);
-    FocusWidget(double start_val, double stop_val, double step_val, QWidget *parent = 0);
+    FocusWidget(QString &root_failename, double start_val, double stop_val, double step_val, QWidget *parent = 0);
 
     ~FocusWidget();
 
-    void setInitSetup(double start_val, double stop_val, double step_val);
+    void setInitSetup(QString &root_failename, double start_val, double stop_val, double step_val);
     void setExpInitSetup(QString &rootfilename, QStringList &rate, int rate_index, int xbin, int ybin);
     void setFittingSetup(QVector<double> &init_pars, QVector<double> &lb = empty_vector, QVector<double> &ub = empty_vector);
 
@@ -101,7 +101,7 @@ private:
     double stopFocusValue;
     double stepFocusValue;
     double currentFocusValue;
-    QDoubleValidator focusValueValidator;
+//    QDoubleValidator focusValueValidator;
 
     QStringList focusImages;
     QVector<double> focusPos;

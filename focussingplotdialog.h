@@ -7,8 +7,10 @@
 #include <QVector>
 #include <QString>
 
-#include "ui_focussingCurvePlot.h"
+#include "qwt_plot_curve.h"
+#include <qwt_symbol.h>
 
+#include "ui_focussingCurvePlot.h"
 
 #define FOCUSSINGPLOTDIALOG_NPOINTS 100
 
@@ -18,11 +20,14 @@ class FocussingPlotDialog : public QDialog
 public:
     FocussingPlotDialog(const QString &title=QString::null, QWidget *parent = nullptr);
 
-    void plot(QVector<double> &foc_value, QVector<double> &fwhm,
+    void plot(QVector<double> &foc_value, QVector<double> &xfwhm, QVector<double> &yfwhm,
               QVector<double> &fit_coeffs, QList<QPixmap> &images);
 
 private:
     Ui::FocussingPlotForm ui;
+
+    QwtPlotCurve *xFWHMCurve, *yFWHMCurve;
+    QwtPlotCurve *xFWHMFitCurve, *yFWHMFitCurve;
 
 };
 
