@@ -2,8 +2,8 @@
 
 #include <algorithm>
 
-FocussingPlotDialog::FocussingPlotDialog(const QString &title, QWidget *parent): QDialog(parent),
-    xFWHMCurve(nullptr), yFWHMCurve(nullptr), xFWHMFitCurve(nullptr), yFWHMFitCurve(nullptr)
+FocussingPlotDialog::FocussingPlotDialog(const QString &title, FocusWidget *parent): QDialog((QWidget*)parent),
+    xFWHMCurve(nullptr), yFWHMCurve(nullptr), xFWHMFitCurve(nullptr), yFWHMFitCurve(nullptr), caller(parent)
 {
     ui.setupUi(this);
 
@@ -38,7 +38,7 @@ FocussingPlotDialog::FocussingPlotDialog(const QString &title, QWidget *parent):
 
 
 void FocussingPlotDialog::plot(QVector<double> &foc_value, QVector<double> &xfwhm, QVector<double> &yfwhm,
-                               QVector<double> &fit_coeffs, QList<QPixmap> &images)
+                               QVector<double> &fit_coeffs)
 {
 
     // clear possible previous plotted curves

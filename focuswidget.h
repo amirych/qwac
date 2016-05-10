@@ -6,7 +6,9 @@
 
 #include "FitsViewWidget.h"
 #include "expparamsdialog.h"
-#include "psf_model.h"
+//#include "psf_model.h"
+#include "modelfunction.h"
+#include "focussingplotdialog.h"
 
 #include <QString>
 #include <QDoubleValidator>
@@ -26,7 +28,8 @@ class runFitting: public QThread
 public:
     enum FitError{OK, InvalidFilename, MemoryAllocationError, FitsError};
     runFitting(QWidget *parent);
-    void initFitting(PSF_Model *psf_model, QStringList &foc_images, QRectF &fit_area);
+//    void initFitting(PSF_Model *psf_model, QStringList &foc_images, QRectF &fit_area);
+    void initFitting(ModelFunction2D *psf_model, QStringList &foc_images, QRectF &fit_area);
     void run();
 signals:
     void fittingParams(QVector<double> params);
@@ -35,7 +38,8 @@ signals:
 private:
     QStringList focusImages;
     QRectF fitArea;
-    PSF_Model* psfModel;
+//    PSF_Model* psfModel;
+    ModelFunction2D* psfModel;
 };
 
 
@@ -50,7 +54,7 @@ class FOCUSWIDGETSHARED_EXPORT FocusWidget: public QMainWindow
 
 public:
     FocusWidget(QWidget *parent = 0);
-    FocusWidget(QString &root_failename, double start_val, double stop_val, double step_val, QWidget *parent = 0);
+    FocusWidget(QString root_failename, double start_val, double stop_val, double step_val, QWidget *parent = 0);
 
     ~FocusWidget();
 
@@ -75,8 +79,8 @@ protected slots:
 protected:
 //    virtual int getImage(QString filename, double exp_time, void *exp_params = nullptr) = 0;
 //    virtual int moveFocus(double focus_value) = 0;
-    virtual int getImage(QString filename, double exp_time, void *exp_params = nullptr) {QThread::sleep(3); return 0;}
-    virtual int moveFocus(double focus_value) {QThread::sleep(3); return 0;}
+    virtual int getImage(QString filename, double exp_time, void *exp_params = nullptr) { return 0;}
+    virtual int moveFocus(double focus_value) { return 0;}
 
 
 private slots:
@@ -106,12 +110,15 @@ private:
     QStringList focusImages;
     QVector<double> focusPos;
 
-    PSF_Model *psfModel;
+//    PSF_Model *psfModel;
+    ModelFunction2D *psfModel;
     QVector<double> fitParams;
     QVector<double> fitLowerBounds;
     QVector<double> fitUpperBounds;
     QVector<double> fitFWHM;
     QVector<double> fitFWHMCoeffs;
+    size_t psfModelBackgroundDegree[2];
+    std::vector<double> psfModelX, psfModelY;
 
     friend class runSequence;
 
@@ -119,6 +126,10 @@ private:
     QRectF selectedArea;
 
     runFitting *runFittingThread;
+
+    FocussingPlotDialog *plotDialog;
+
+//    void psfModelArgs(std::vector<double> &x, std::vector<double> &y);
 };
 
 

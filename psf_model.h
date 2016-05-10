@@ -15,6 +15,7 @@
 
 struct extraData_t
 {
+    extraData_t();
     QVector<double> x;
     QVector<double> y;
 
@@ -44,7 +45,7 @@ public:
     PSF_Model(psfModelFunc_t func);
     PSF_Model(psfModelFunc_t func, QVector<double> &pars, extraData_t *extra_data = nullptr);
 
-//    ~PSF_Model();
+    virtual ~PSF_Model();
 
     virtual void setParams(QVector<double> &pars, extraData_t *extra_data = nullptr);
     virtual void setLowerBounds(QVector<double> &lb);

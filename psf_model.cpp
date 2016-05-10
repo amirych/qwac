@@ -78,12 +78,14 @@ static void poly2d(double *x, double *y, double *coeffs, int n, int x_degree, in
     int idx = 1;
 
     for ( int i = 0; i < n; ++i ) {
-        val[i] = coeffs[0];
+//        val[i] = coeffs[0];
+        val[i] = 0.0;
+        idx = 0;
         argx = 1.0;
         for ( int ord_x = 0; ord_x <= x_degree; ++ord_x, argx *= x[i] ) {
             argy = 1.0;
             for ( int ord_y = 0; ord_y <= y_degree; ++ord_y, argy *= y[i] ) {
-                val[i] = coeffs[idx++]*argx*argy;
+                val[i] += coeffs[idx++]*argx*argy;
             }
 
         }
@@ -315,6 +317,12 @@ static void moffat2d(double* pars, double* func, int n_params, int n_func, void 
 static QVector<double> emptyVector;
 
 
+extraData_t::extraData_t():
+    x(emptyVector), y(emptyVector)
+{
+    extra_params = nullptr;
+}
+
         /*  PSF_Model class realization  */
 
 
@@ -324,8 +332,11 @@ PSF_Model::PSF_Model(psfModelFunc_t func, QVector<double> &pars, extraData_t *ex
     maxIter(PSF_MODEL_DEFAULT_ITMAX)
 {
     if ( extra_data == nullptr ) {
+        qDebug() << "allocate extra data!";
         modelFuncExtraData = new extraData_t;
-        modelFuncExtraData->extra_params = nullptr;
+//        modelFuncExtraData->x = emptyVector;
+//        modelFuncExtraData->y = emptyVector;
+//        modelFuncExtraData->extra_params = nullptr;
     }
 }
 
@@ -337,16 +348,19 @@ PSF_Model::PSF_Model(psfModelFunc_t func):
 }
 
 
-//PSF_Model::~PSF_Model()
-//{
-//    delete modelFuncExtraData;
-//}
+PSF_Model::~PSF_Model()
+{
+//    if ( modelFuncExtraData->extra_params != nullptr ) delete modelFuncExtraData->extra_params;
+    delete modelFuncExtraData;
+}
 
 
 void PSF_Model::setParams(QVector<double> &pars, extraData_t *extra_data)
 {
     params = pars;
-    modelFuncExtraData = extra_data;
+    if ( extra_data != nullptr ) {
+        modelFuncExtraData = extra_data;
+    }
 }
 
 
@@ -786,11 +800,13 @@ void Moffat2D_Model::setParams(QVector<double> &pars)
         if ( N < i ) params[--i] = PSF_MODEL_CENTER_DEFAULT;
         if ( N == 0 ) params[0] = PSF_MODEL_AMP_DEFAULT;
     }
+
+    qDebug() << "Moffat2D setParams!";
 }
 
 void Moffat2D_Model::setLowerBounds(QVector<double> &lb)
 {
-    qDebug() << "MoffatD lower bounds!";
+    qDebug() << "Moffat2D lower bounds!";
     lowerBounds = lb;
 
     if ( lowerBounds.size() < PSF_MODEL_MOFFAT2D_MIN_NPARS ) { // set default constrains

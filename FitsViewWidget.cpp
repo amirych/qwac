@@ -197,8 +197,12 @@ void FitsViewWidget::load(const QString fits_filename, const bool autoscale)
     int naxis, bitpix;
     LONGLONG nelem = 1;
 
-    char* filename = fits_filename.toLocal8Bit().data();
+//    char* filename = fits_filename.toLocal8Bit().data();
+    char filename[32100];
 
+    strncpy(filename,fits_filename.toLocal8Bit().data(),fits_filename.size()+1);
+
+//    qDebug() << "view: " << filename;
     try {
         fits_open_image(&FITS_fptr, filename, READONLY, &fits_status);
         if ( fits_status ) throw fits_status;
@@ -232,6 +236,7 @@ void FitsViewWidget::load(const QString fits_filename, const bool autoscale)
 
         currentImage_npix = 0;
 
+//        qDebug() << "FITSViewer error: " << err;
         return;
     }
 
@@ -278,6 +283,7 @@ void FitsViewWidget::load(const QString fits_filename, const bool autoscale)
 //    currentZoomFactor = 0.0; // full image
 
 //    qDebug() << "cuts: " << currentLowCut << ", " << currentHighCut;
+    this->showImage();
 }
 
 
