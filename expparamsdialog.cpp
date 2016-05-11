@@ -1,4 +1,5 @@
 #include "expparamsdialog.h"
+#include <QDebug>
 
 ExpParamsDialog::ExpParamsDialog(QWidget *parent): QDialog(parent)
 //  ,areaValidator(EXPPARAMSDIALOG_AREA_MIN,EXPPARAMSDIALOG_AREA_MAX,this)
@@ -43,7 +44,7 @@ ExpParamsDialog::ExpParamsDialog(QWidget *parent): QDialog(parent)
 void ExpParamsDialog::init(QString &filename, QStringList &items, int index, int xbin, int ybin)
 {
     ui.filenameLineEdit->setText(filename);
-
+    qDebug() << "EXPPARAM INIT: " << filename;
     ui.rateComboBox->clear();
     ui.rateComboBox->addItems(items);
     ui.rateComboBox->setCurrentIndex(index);
@@ -125,4 +126,10 @@ int ExpParamsDialog::getExpNum() const
 QString ExpParamsDialog::getFilename() const
 {
     return ui.filenameLineEdit->text();
+}
+
+
+void ExpParamsDialog::setFilename(QString filename)
+{
+    ui.filenameLineEdit->setText(filename);
 }

@@ -1,7 +1,7 @@
 #ifndef MODELFUNCTION_H
 #define MODELFUNCTION_H
 
-#include <levmar.h>
+#include <mpfit.h>
 #include <vector>
 #include <string>
 
@@ -56,16 +56,19 @@ public:
     virtual std::vector<double> getParams();
     virtual void setConstrains(std::vector<double> &lb, std::vector<double> &ub);
     virtual void getConstrains(std::vector<double> *lb, std::vector<double> *ub);
+    virtual void setFixedParams(std::vector<size_t> &param_num);
+    std::vector<size_t> getFixedParams() const;
 
     void setModelFunctionName(std::string &name);
     void setModelFunctionName(std::string name);
 
     void fitData(std::vector<double> &data);
+    void fitData(double *data, size_t data_len);
 
     std::vector<double> operator()();
 
     int getFitStatus() const;
-    void getFitInfo(double info[LM_INFO_SZ]);
+    void getFitInfo(mp_result *fit_info);
     void setMaxIterations(int max_iter);
 
     int getCompStatus() const;
@@ -74,6 +77,7 @@ protected:
     std::vector<double> params;
     void *extraParams;
     std::vector<double> lowerBounds, upperBounds;
+    std::vector<size_t> fixedParamNumber;
     std::vector<double> functionValue;
     std::vector<double> measurementData;
 
@@ -82,14 +86,17 @@ protected:
     int maxIter;
 
     int fitStatus;
-    double fitInfo[LM_INFO_SZ];
+    mp_result fitInfo;
+    mp_config fitConfig;
 
     int compStatus; // status of user function computations
 
     virtual void compute() = 0;
 
-    void virtual checkParams();
-    void virtual checkConstrains();
+    virtual void checkParams();
+    virtual void checkConstrains();
+
+    virtual void fitting();
 };
 
 
@@ -104,6 +111,7 @@ public:
     virtual ~ModelFunction();
 
     void setArgument(std::vector<double> &arg);
+    void setArgument(double xmin, double xmax, double xstep = 1.0);
 
     std::vector<double> operator()(std::vector<double> &x);
 
@@ -126,6 +134,7 @@ public:
     virtual ~ModelFunction2D();
 
     void setArgument(std::vector<double> &argX, std::vector<double> &argY);
+    void setArgument(double xmin, double xmax, double ymin, double ymax, double xstep = 1.0, double ystep = 1.0);
 
     std::vector<double> operator()(std::vector<double> &x, std::vector<double> &y);
 

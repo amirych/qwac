@@ -18,7 +18,6 @@ SOURCES += \
     focuswidget.cpp \
     expparamsdialog.cpp \
     focussingplotdialog.cpp \
-    psf_model.cpp \
     modelfunction.cpp
 
 HEADERS += \
@@ -28,7 +27,6 @@ HEADERS += \
     focuswidget.h \
     expparamsdialog.h \
     focussingplotdialog.h \
-    psf_model.h \
     modelfunction.h
 
 

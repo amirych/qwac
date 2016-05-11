@@ -20,6 +20,7 @@
 
 class ExpParamsDialog : public QDialog
 {
+    Q_OBJECT
 public:
     ExpParamsDialog(QWidget *parent = nullptr);
 
@@ -36,6 +37,9 @@ public:
     double getExptime() const;
     int getExpNum() const;
     QString getFilename() const;
+
+public slots:
+    void setFilename(QString filename);
 
 private:
     Ui::ExpParamsForm ui;

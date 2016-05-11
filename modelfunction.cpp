@@ -4,8 +4,6 @@
 #include <cmath>
 #include <cstring>
 
-#include <mpfit.h>
-
 // default constrains
 #define MODELFUNCTION_BOUND_DEFAULT_MIN -std::numeric_limits<double>::infinity()
 #define MODELFUNCTION_BOUND_DEFAULT_MAX std::numeric_limits<double>::infinity()
@@ -50,6 +48,38 @@ static std::vector<double> empty_vec;
 #include <QDebug>
 
 
+static void generate_vector(std::vector<double> &vec, double min_val, double max_val, double step = 1.0)
+{
+    if ( (max_val < min_val) && step > 0.0 ) return;
+    if ( (max_val > min_val) && step < 0.0 ) return;
+
+    vec.clear();
+    double val;
+    for ( val = min_val; val <= max_val; val+=step ) {
+        vec.push_back(val);
+    }
+}
+
+static void generate_vectors(std::vector<double> &vecX, std::vector<double> &vecY, double xmin, double xmax,
+                             double ymin, double ymax, double xstep = 1.0, double ystep = 1.0)
+{
+    if ( (xmax < xmin) && xstep > 0.0 ) return;
+    if ( (xmax > xmin) && xstep < 0.0 ) return;
+    if ( (ymax < ymin) && ystep > 0.0 ) return;
+    if ( (ymax > ymin) && ystep < 0.0 ) return;
+
+    vecX.clear();
+    vecY.clear();
+
+    double valX, valY;
+    for ( valY = ymin; valY <= ymax; valY+=ystep ) {
+        for ( valX = xmin; valX <= xmax; valX+=xstep ) {
+            vecX.push_back(valX);
+            vecY.push_back(valY);
+        }
+    }
+}
+
 int mpfit_wrapper(int m, int n, double *p, double *dy, double **dvec, void *extra) {
     AbstractModelFunction* obj = static_cast<AbstractModelFunction*>(extra);
 
@@ -75,22 +105,6 @@ int mpfit_wrapper(int m, int n, double *p, double *dy, double **dvec, void *extr
     return 0;
 }
 
-
-// a wrapper function to call LEVMAR fitting functions
-// extra is pointer to class where calling of LEVMAR function is performed
-void levmar_obj_func_wrapper(double *pars, double*func, int n_pars, int n_func, void* extra) {
-    AbstractModelFunction* obj = static_cast<AbstractModelFunction*>(extra);
-
-    obj->compute();
-
-    memcpy(func,obj->functionValue.data(),obj->functionValue.size()*sizeof(double));
-
-//    for ( int i = 0; i < 5; ++i ) qDebug() << func[i] << obj->functionValue.data()[i];
-//    qDebug() << "COMP LEVMAR n_func: " << n_func << ", should be: " << obj->functionValue.size();
-//    qDebug() << "COMP LEVMAR: " << QVector<double>::fromStdVector(obj->getParams());
-//    qDebug() << "COMP STAT: " << obj->getCompStatus();
-//    qDebug() << "COMP INFO[6]: " << obj->fitInfo[6];
-}
 
                     /* SOME OFTEN USED MODEL FUNCTIONS DEFINITIONS */
 
@@ -339,11 +353,17 @@ static int moffat2d_func(std::vector<double> &x, std::vector<double> &y, std::ve
 AbstractModelFunction::AbstractModelFunction(std::vector<double> &pars, void *extra_pars):
     params(pars), extraParams(extra_pars),
     lowerBounds(std::vector<double>()), upperBounds(std::vector<double>()),
+    fixedParamNumber(std::vector<size_t>()),
     functionValue(std::vector<double>()), measurementData(std::vector<double>()),
     modelFunctionName(""), maxIter(MODELFUNCTION_DEFAULT_MAXITER),
     fitStatus(0), compStatus(0)
 {
     checkParams();
+
+    memset(&fitInfo,0,sizeof(mp_result));
+    memset(&fitConfig,0,sizeof(mp_config));
+
+    fitConfig.maxiter = maxIter;
 }
 
 
@@ -370,6 +390,12 @@ void AbstractModelFunction::setConstrains(std::vector<double> &lb, std::vector<d
 }
 
 
+void AbstractModelFunction::setFixedParams(std::vector<size_t> &param_num)
+{
+    fixedParamNumber = param_num;
+}
+
+
 std::vector<double> AbstractModelFunction::getParams()
 {
     return params;
@@ -380,6 +406,12 @@ void AbstractModelFunction::getConstrains(std::vector<double> *lb, std::vector<d
 {
     if ( lb ) *lb = lowerBounds;
     if ( ub ) *ub = upperBounds;
+}
+
+
+std::vector<size_t> AbstractModelFunction::getFixedParams() const
+{
+    return fixedParamNumber;
 }
 
 
@@ -397,57 +429,45 @@ void AbstractModelFunction::setModelFunctionName(std::string name)
 
 void AbstractModelFunction::fitData(std::vector<double> &data)
 {
-    double *work_space = nullptr;
-
-    double opts[LM_OPTS_SZ];
-    opts[0]=LM_INIT_MU;
-    opts[1]=1E-15;
-    opts[2]=1E-15;
-    opts[3]=1E-20;
-    opts[4]= -LM_DIFF_DELTA;
-
-    checkConstrains();
-
-    try {
-        work_space = new double[LM_BC_DIF_WORKSZ(params.size(),data.size())];
-    } catch (std::bad_alloc &ex) {
-        return;
-    }
-
-//    fitStatus = dlevmar_bc_dif(levmar_obj_func_wrapper,params.data(),data.data(),params.size(),data.size(),
-//                               lowerBounds.data(),upperBounds.data(),NULL,maxIter,
-//                               opts,fitInfo,NULL,NULL,(void*)this);
-//    fitStatus = dlevmar_bc_dif(levmar_obj_func_wrapper,params.data(),data.data(),params.size(),data.size(),
-//                               lowerBounds.data(),upperBounds.data(),NULL,maxIter,
-//                               NULL,fitInfo,work_space,NULL,(void*)this);
-
-    delete[] work_space;
-
     measurementData = data;
 
-    mp_par pars[lowerBounds.size()];
-    mp_result result;
-//    mp_config cc;
+    fitting();
+}
 
-//    memset(&cc,0,sizeof(cc));
-    memset(&result,0,sizeof(result));
+void AbstractModelFunction::fitData(double *data, size_t data_len)
+{
+    measurementData = std::vector<double>(data, data+data_len);
+
+    fitting();
+}
+
+
+void AbstractModelFunction::fitting()
+{
+    checkConstrains();
+
+    mp_par pars[params.size()];
     memset(&pars,0,sizeof(pars));
 
-    for ( size_t i = 0; i < lowerBounds.size(); ++i ) {
+    for ( size_t i = 0; i < params.size(); ++i ) {
         pars[i].fixed = 0;
         pars[i].limited[0] = 1;
         pars[i].limited[1] = 1;
         pars[i].limits[0] = lowerBounds[i];
         pars[i].limits[1] = upperBounds[i];
     }
-//    pars[5].fixed = 1;
 
-    int res = mpfit(mpfit_wrapper,measurementData.size(),params.size(),params.data(),pars,nullptr,(void*)this,&result);
-//    int res = mpfit(mpfit_wrapper,measurementData.size(),params.size(),params.data(),0,0,(void*)this,&result);
+    for ( size_t i = 0; i < fixedParamNumber.size(); ++i ) {
+        size_t idx = fixedParamNumber[i];
+        if ( idx < params.size() ) pars[idx].fixed = 1;
+    }
 
-//    qDebug() << "MPFIT return: " << res;
-    qDebug() << "MPFIT RES: status = " << result.status << ", bestnorm: " << result.bestnorm << ", niter = " << result.niter;
+    int fitStatus = mpfit(mpfit_wrapper,measurementData.size(),params.size(),params.data(),pars,&fitConfig,(void*)this,&fitInfo);
+//    int fitStatus = mpfit(mpfit_wrapper,measurementData.size(),params.size(),params.data(),pars,0,(void*)this,&fitInfo);
+
+    qDebug() << "MPFIT RES: status = " << fitStatus << ", bestnorm: " << fitInfo.bestnorm << ", niter = " << fitInfo.niter;
     qDebug() << "MPFIT PARS: " << QVector<double>::fromStdVector(params);
+
 }
 
 
@@ -465,16 +485,17 @@ int AbstractModelFunction::getFitStatus() const
 }
 
 
-void AbstractModelFunction::getFitInfo(double info[LM_INFO_SZ])
+void AbstractModelFunction::getFitInfo(mp_result *fit_info)
 {
-    if ( !info ) return;
-    for ( size_t i = 0; i < LM_INFO_SZ; ++i ) info[i] = fitInfo[i];
+    if ( !fit_info ) return;
+    memcpy(fit_info,&fitInfo,sizeof(mp_result));
 }
 
 
 void AbstractModelFunction::setMaxIterations(int max_iter)
 {
     maxIter = max_iter > 0 ? max_iter : MODELFUNCTION_DEFAULT_MAXITER;
+    fitConfig.maxiter = maxIter;
 }
 
 
@@ -533,6 +554,12 @@ void ModelFunction::setArgument(std::vector<double> &arg)
     if ( functionValue.size() < argumentX.size() ) functionValue.resize(argumentX.size());
 }
 
+void ModelFunction::setArgument(double xmin, double xmax, double xstep)
+{
+    generate_vector(argumentX,xmin,xmax,xstep);
+    if ( functionValue.size() < argumentX.size() ) functionValue.resize(argumentX.size());
+}
+
 
 void ModelFunction::compute()
 {
@@ -585,6 +612,15 @@ void ModelFunction2D::setArgument(std::vector<double> &argX, std::vector<double>
     }
     if ( functionValue.size() < argumentX.size() ) functionValue.resize(argumentX.size());
 }
+
+
+void ModelFunction2D::setArgument(double xmin, double xmax, double ymin, double ymax, double xstep, double ystep)
+{
+    generate_vectors(argumentX,argumentY,xmin,xmax,ymin,ymax,xstep,ystep);
+
+    if ( functionValue.size() < argumentX.size() ) functionValue.resize(argumentX.size());
+}
+
 
 void ModelFunction2D::compute()
 {

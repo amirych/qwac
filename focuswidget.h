@@ -26,7 +26,6 @@ class runFitting: public QThread
 {
     Q_OBJECT
 public:
-    enum FitError{OK, InvalidFilename, MemoryAllocationError, FitsError};
     runFitting(QWidget *parent);
 //    void initFitting(PSF_Model *psf_model, QStringList &foc_images, QRectF &fit_area);
     void initFitting(ModelFunction2D *psf_model, QStringList &foc_images, QRectF &fit_area);
@@ -34,7 +33,7 @@ public:
 signals:
     void fittingParams(QVector<double> params);
     void fittingComplete();
-    void error(runFitting::FitError err);
+    void error(int);
 private:
     QStringList focusImages;
     QRectF fitArea;
@@ -91,7 +90,7 @@ private slots:
     void clearSelectedArea();
     void fittingComplete();
     void fittingParams(QVector<double> params);
-    void fittingError(runFitting::FitError err);
+    void fittingError(int err);
 
 private:
     Ui::FocusWidgetForm ui;

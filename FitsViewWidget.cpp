@@ -198,7 +198,7 @@ void FitsViewWidget::load(const QString fits_filename, const bool autoscale)
     LONGLONG nelem = 1;
 
 //    char* filename = fits_filename.toLocal8Bit().data();
-    char filename[32100];
+    char filename[FLEN_FILENAME];
 
     strncpy(filename,fits_filename.toLocal8Bit().data(),fits_filename.size()+1);
 

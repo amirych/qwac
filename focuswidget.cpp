@@ -35,25 +35,25 @@ static void parabola_func(double* pars, double* func, int n_params, int n_func, 
 
 
 // generate PSF fitting model arguments
-static QVector<double> generate_arguments(QRectF &area, QVector<double> &x, QVector<double> &y) {
-    double xmin,ymin,xmax,ymax;
+//static QVector<double> generate_arguments(QRectF &area, QVector<double> &x, QVector<double> &y) {
+//    double xmin,ymin,xmax,ymax;
 
-    xmin = round(area.x());
-    ymin = round(area.y());
-    xmax = round(area.x()+area.width()-1);
-    ymax = round(area.y()+area.height()-1);
+//    xmin = round(area.x());
+//    ymin = round(area.y());
+//    xmax = round(area.x()+area.width()-1);
+//    ymax = round(area.y()+area.height()-1);
 
-    x.clear();
-    y.clear();
-    for ( double yy = ymin; yy <= ymax; ++yy ) {
-        for ( double xx = xmin; xx <= xmax; ++xx ) {
-            x.append(xx);
-            y.append(yy);
-        }
-    }
+//    x.clear();
+//    y.clear();
+//    for ( double yy = ymin; yy <= ymax; ++yy ) {
+//        for ( double xx = xmin; xx <= xmax; ++xx ) {
+//            x.append(xx);
+//            y.append(yy);
+//        }
+//    }
 
-    return QVector<double>({xmin,xmax,ymin,ymax});
-}
+//    return QVector<double>({xmin,xmax,ymin,ymax});
+//}
 
 
 FocusWidget::FocusWidget(QString root_filename, double start_val, double stop_val, double step_val, QWidget *parent): QMainWindow(parent),
@@ -84,6 +84,8 @@ FocusWidget::FocusWidget(QString root_filename, double start_val, double stop_va
 
     expParamsDialog = new ExpParamsDialog(this);
 
+    connect(ui.rootnameLineEdit,SIGNAL(textChanged(QString)),expParamsDialog,SLOT(setFilename(QString)));
+
     connect(ui.quitButton,SIGNAL(clicked(bool)),this,SLOT(about_quit()));
     connect(ui.runButton,SIGNAL(clicked(bool)),this,SLOT(run()));
     connect(ui.stopButton,SIGNAL(clicked(bool)),this,SLOT(stop()));
@@ -107,7 +109,7 @@ FocusWidget::FocusWidget(QString root_filename, double start_val, double stop_va
     runFittingThread = new runFitting(this);
     connect(runFittingThread,SIGNAL(fittingComplete()),this,SLOT(fittingComplete()));
     connect(runFittingThread,SIGNAL(fittingParams(QVector<double>)),this,SLOT(fittingParams(QVector<double>)));
-    connect(runFittingThread,SIGNAL(error(runFitting::FitError)),this,SLOT(fittingError(runFitting::FitError)));
+    connect(runFittingThread,SIGNAL(error(int)),this,SLOT(fittingError(int)));
 
     psfModelBackgroundDegree[0] = 0;
     psfModelBackgroundDegree[1] = 0;
@@ -115,6 +117,7 @@ FocusWidget::FocusWidget(QString root_filename, double start_val, double stop_va
     // defaults for image series
     QStringList rates;
     rates << "Normal";
+
     expParamsDialog->init(root_filename,rates,0,1,1);
 
     plotDialog = new FocussingPlotDialog("",this);
@@ -242,6 +245,8 @@ void FocusWidget::clearSelectedArea()
 
 void FocusWidget::fittingComplete()
 {
+    ui.runButton->setEnabled(true);
+    ui.focussingButton->setEnabled(true);
     return;
     // fit parabola to focus-FWHM relation
 
@@ -320,11 +325,11 @@ void FocusWidget::fittingParams(QVector<double> params)
 }
 
 
-void FocusWidget::fittingError(runFitting::FitError err)
+void FocusWidget::fittingError(int err)
 {
     ui.focussingButton->setEnabled(true);
 
-    QString str = QString("Fitting proccess failed! Error code: %1").arg((int)err);
+    QString str = QString("Fitting proccess failed! Error code: %1").arg(err);
 
     setStatusMsg(str);
 }
@@ -369,9 +374,9 @@ void FocusWidget::run()
     QString root_filename = expParamsDialog->getFilename();
     double exp_time = expParamsDialog->getExptime();
 
-    for ( int i = 1; i <= n_focus_pos; ++i ) {
-        focusPos << startFocusValue + (i-1)*stepFocusValue;
-        focusImages << QString(root_filename + "%1.fits").arg(i,digit_num,10,QChar('0'));
+    for ( int i = 0; i <= n_focus_pos; ++i ) {
+        focusPos << startFocusValue + i*stepFocusValue;
+        focusImages << QString(root_filename + "%1.fits").arg((i+1),digit_num,10,QChar('0'));
     }
 
     focussingSequenceThread->initSequence(focusPos,focusImages,exp_time,nullptr);
@@ -398,37 +403,44 @@ void FocusWidget::focussing()
 
     fitFWHM.clear();
 
-    QVector<double> x,y;
+//    QVector<double> x,y;
 
-    generate_arguments(selectedArea,x,y);
+//    generate_arguments(selectedArea,x,y);
 
 //    size_t back_deg[2] = {0,0}; // just constant as background
-    std::vector<double> pp(5);
-    pp[0] = 360.0;
+    std::vector<double> pp(3);
+//    std::vector<double> pp(5);
+    pp[0] = 0.0;
     pp[1] = selectedArea.x() + selectedArea.width()/2.0;
     pp[2] =  selectedArea.y() + selectedArea.height()/2.0;
-    pp[3] = 20;
-    pp[4] = 20;
+//    pp[3] = 20;
+//    pp[4] = 20;
 
     if ( ui.psfModelComboBox->currentText() == "Moffat2D" ) {
-//        psfModel = new Moffat2D_Model();
         psfModel = new Moffat2DModelFunction(pp,psfModelBackgroundDegree);
     } else if ( ui.psfModelComboBox->currentText() == "Gauss2D" ) {
-//        psfModel = new Gauss2D_Model();
         psfModel = new Gauss2DModelFunction(pp,psfModelBackgroundDegree);
     } else {
             setStatusMsg("Unknown PSF model!!!");
             return;
     }
 
-    psfModelX = x.toStdVector();
-    psfModelY = y.toStdVector();
-//    psfModel->setArgument(x,y);
-    psfModel->setArgument(psfModelX,psfModelY);
+//    psfModelX = x.toStdVector();
+//    psfModelY = y.toStdVector();
 
-    pp = psfModel->getParams();
-    pp[pp.size()-1] = 3022.0;
-    psfModel->setParams(pp,psfModelBackgroundDegree);
+//    psfModel->setArgument(psfModelX,psfModelY);
+
+    double xmin = round(selectedArea.x());
+    double ymin = round(selectedArea.y());
+    double xmax = round(selectedArea.x() + selectedArea.width());
+    double ymax = round(selectedArea.y() + selectedArea.height());
+
+    psfModel->setArgument(xmin,xmax,ymin,ymax);
+
+//    pp = psfModel->getParams();
+//    pp[pp.size()-1] = 3022.0;
+//    psfModel->setParams(pp,psfModelBackgroundDegree);
+
 //    qDebug() << "ARG LEN: " << psfModelX.size();
     qDebug() << "INIT PARS: " << QVector<double>::fromStdVector(pp);
 //    psfModel->setParams(pp,(void*)back_deg);
@@ -558,22 +570,27 @@ void runFitting::run()
     std::unique_ptr<double[]> image;
 
 
-    QVector<double> x,y;
+//    QVector<double> x,y;
 
-    QVector<double> borders = generate_arguments(fitArea,x,y);
+//    QVector<double> borders = generate_arguments(fitArea,x,y);
+
+    double xmin = round(fitArea.x());
+    double ymin = round(fitArea.y());
+    double xmax = round(fitArea.x() + fitArea.width());
+    double ymax = round(fitArea.y() + fitArea.height());
 
 //    psfModel->setArgument(x,y);
 
     for ( int i = 0; i < focusImages.length(); ++i ) {
         QString filename = focusImages[i].trimmed();
         if ( filename.isEmpty() ) {
-            emit error(runFitting::InvalidFilename);
+            emit error((int) 104); // CFITSIO error
             return;
         }
 
         // special filename form for sub-image reading
-//        filename = QString(filename+"[%1:%2, %3:%4]").arg(xmin).arg(xmax).arg(ymin).arg(ymax);
-        filename = QString(filename+"[%1:%2, %3:%4]").arg(borders[0],0,'f',0).arg(borders[1],0,'f',0).arg(borders[2],0,'f',0).arg(borders[3],0,'f',0);
+        filename = QString(filename+"[%1:%2, %3:%4]").arg(xmin,0,'f',0).arg(xmax,0,'f',0).arg(ymin,0,'f',0).arg(ymax,0,'f',0);
+//        filename = QString(filename+"[%1:%2, %3:%4]").arg(borders[0],0,'f',0).arg(borders[1],0,'f',0).arg(borders[2],0,'f',0).arg(borders[3],0,'f',0);
 //        char* fname = filename.toLocal8Bit().data();
 
         char fname[FLEN_FILENAME];
@@ -607,34 +624,35 @@ void runFitting::run()
 //            std::vector<double> v = std::vector<double>(buffer,buffer+nelem);
 //            QVector<double> data = QVector<double>::fromStdVector(v);
 
-            std::vector<double> data = std::vector<double>(buffer,buffer+nelem);
+//            std::vector<double> data = std::vector<double>(buffer,buffer+nelem);
 
-            psfModel->fitData(data);
+//            psfModel->fitData(data);
 
-            std::vector<double> lb,ub;
-            psfModel->getConstrains(&lb,&ub);
-            qDebug() << "lower bounds: " << QVector<double>::fromStdVector(lb);
-            qDebug() << "upper bounds: " << QVector<double>::fromStdVector(ub);
+            psfModel->fitData(buffer,nelem);
+
+//            std::vector<double> lb,ub;
+//            psfModel->getConstrains(&lb,&ub);
+//            qDebug() << "lower bounds: " << QVector<double>::fromStdVector(lb);
+//            qDebug() << "upper bounds: " << QVector<double>::fromStdVector(ub);
 
 //            qDebug() << "DATA Nelem: " << nelem;
 //            qDebug() << "FIT PARS: " << QVector<double>::fromStdVector(psfModel->getParams());
 //            qDebug() << "FIT STATUS: " << psfModel->getFitStatus();
-//            double ii[LM_INFO_SZ];
-//            psfModel->getFitInfo(ii);
-//            qDebug() << "FIT INFO[6]: " << ii[6];
 
 //            emit fittingParams(psfModel->getParams());
 
         } catch (std::bad_alloc &ex) {
-            image = nullptr;
-            fits_close_file(FITS_fptr, &fits_status);
-            emit error(runFitting::MemoryAllocationError);
-            return;
+            throw (int) -1;
+//            image = nullptr;
+//            fits_close_file(FITS_fptr, &fits_status);
+//            emit error(runFitting::MemoryAllocationError);
+//            return;
         } catch (int err) {
             image = nullptr;
             fits_close_file(FITS_fptr, &fits_status);
 //            qDebug() << "PSF fitting err: " << err;
-            emit error(runFitting::FitsError);
+//            emit error(runFitting::FitsError);
+            emit error(err);
             return;
         }
 
