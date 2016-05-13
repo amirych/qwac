@@ -108,8 +108,16 @@ FocusWidget::FocusWidget(QString root_filename, double start_val, double stop_va
 
     runFittingThread = new runFitting(this);
     connect(runFittingThread,SIGNAL(fittingComplete()),this,SLOT(fittingComplete()));
-    connect(runFittingThread,SIGNAL(fittingParams(QVector<double>)),this,SLOT(fittingParams(QVector<double>)));
+//    connect(runFittingThread,SIGNAL(fittingParams(QVector<double>)),this,SLOT(fittingParams(QVector<double>)));
     connect(runFittingThread,SIGNAL(error(int)),this,SLOT(fittingError(int)));
+
+    connect(runFittingThread, &runFitting::started,
+          [=]{ ui.focussingButton->setEnabled(false); ui.runButton->setEnabled(false);});
+//    connect(runFittingThread, &runFitting::finished,
+//          [=]{ ui.focussingButton->setEnabled(true); ui.runButton->setEnabled(true); });
+//    connect(runFittingThread, &runFitting::fittingComplete,
+//          [=]{ ui.focussingButton->setEnabled(true); ui.runButton->setEnabled(true); });
+
 
     psfModelBackgroundDegree[0] = 0;
     psfModelBackgroundDegree[1] = 0;
@@ -133,6 +141,10 @@ FocusWidget::~FocusWidget()
     if ( focussingSequenceThread->isRunning() ) focussingSequenceThread->requestInterruption();
 
     delete psfModel;
+
+//    delete focussingSequenceThread;
+//    delete runFittingThread;
+//    delete plotDialog;
 }
 
             /*   PUBLIC METHODS   */
@@ -246,72 +258,83 @@ void FocusWidget::clearSelectedArea()
 void FocusWidget::fittingComplete()
 {
     ui.runButton->setEnabled(true);
-    ui.focussingButton->setEnabled(true);
-    return;
-    // fit parabola to focus-FWHM relation
 
-    QVector<double> lb(FOCUSWIDGET_FWHM_FITTING_ORDER);
-    QVector<double> ub(FOCUSWIDGET_FWHM_FITTING_ORDER);
+    setStatusMsg("Compute the best focus and plotting the results ...");
 
-    QVector<double> xFWHM, yFWHM;
+//    // fit parabola to focus-FWHM relation
 
-    // set constrains
-    for ( int i = 0; i < FOCUSWIDGET_FWHM_FITTING_ORDER; ++i ) {
-        lb[i] = -std::numeric_limits<double>::infinity();
-        ub[i] = std::numeric_limits<double>::infinity();
-    }
+//    QVector<double> lb(FOCUSWIDGET_FWHM_FITTING_ORDER);
+//    QVector<double> ub(FOCUSWIDGET_FWHM_FITTING_ORDER);
 
-    // polynom coefficient of x^2 (for parabola) term must be greater than 0
-    lb[FOCUSWIDGET_FWHM_FITTING_ORDER-1] = 0.0;
+//    QVector<double> xFWHM, yFWHM;
 
-    // set initial coefficients
-    for ( int i = 0; i < 2*FOCUSWIDGET_FWHM_FITTING_ORDER; ++i ) fitFWHMCoeffs[i] = 0.0;
-    fitFWHMCoeffs[FOCUSWIDGET_FWHM_FITTING_ORDER-1] = 1.0; // along X-axis
-    fitFWHMCoeffs[2*FOCUSWIDGET_FWHM_FITTING_ORDER-1] = 1.0; // along Y-axis
+//    // set constrains
+//    for ( int i = 0; i < FOCUSWIDGET_FWHM_FITTING_ORDER; ++i ) {
+//        lb[i] = -std::numeric_limits<double>::infinity();
+//        ub[i] = std::numeric_limits<double>::infinity();
+//    }
 
-    double *work_space = nullptr;
+//    // polynom coefficient of x^2 (for parabola) term must be greater than 0
+//    lb[FOCUSWIDGET_FWHM_FITTING_ORDER-1] = 0.0;
 
-    int ret;
+//    // set initial coefficients
+//    for ( int i = 0; i < 2*FOCUSWIDGET_FWHM_FITTING_ORDER; ++i ) fitFWHMCoeffs[i] = 0.0;
+//    fitFWHMCoeffs[FOCUSWIDGET_FWHM_FITTING_ORDER-1] = 1.0; // along X-axis
+//    fitFWHMCoeffs[2*FOCUSWIDGET_FWHM_FITTING_ORDER-1] = 1.0; // along Y-axis
 
-    try {
-        work_space = new double[LM_BC_DIF_WORKSZ(FOCUSWIDGET_FWHM_FITTING_ORDER,focusPos.size())];
-        for ( int i = 0; i < focusPos.size(); ++i ) {
-            xFWHM.append(fitFWHM[i*2]);
-            yFWHM.append(fitFWHM[i*2+1]);
-        }
-    } catch (std::bad_alloc &ex) {
-        setStatusMsg("Memory allocation error occured!!!");
-        return;
-    }
+//    double *work_space = nullptr;
 
+//    int ret;
 
-    // fit relation for FWHM along X-axis
-    ret = dlevmar_bc_dif(parabola_func,fitFWHMCoeffs.data(),xFWHM.data(),FOCUSWIDGET_FWHM_FITTING_ORDER,xFWHM.size(),
-                         lb.data(),ub.data(),NULL,100,NULL,NULL,work_space,NULL,(void*)focusPos.data());
+//    try {
+//        work_space = new double[LM_BC_DIF_WORKSZ(FOCUSWIDGET_FWHM_FITTING_ORDER,focusPos.size())];
+//        for ( int i = 0; i < focusPos.size(); ++i ) {
+//            xFWHM.append(fitFWHM[i*2]);
+//            yFWHM.append(fitFWHM[i*2+1]);
+//        }
+//    } catch (std::bad_alloc &ex) {
+//        setStatusMsg("Memory allocation error occured!!!");
+//        return;
+//    }
 
 
-    if ( ret < 0 ) {
-        setStatusMsg("Cannot fit 'focusPos - FWHM' relation!!!");
-        delete[] work_space;
-        return;
-    }
-
-    // fit relation for FWHM along Y-axis
-    ret = dlevmar_bc_dif(parabola_func,fitFWHMCoeffs.data()+FOCUSWIDGET_FWHM_FITTING_ORDER,yFWHM.data(),FOCUSWIDGET_FWHM_FITTING_ORDER,yFWHM.size(),
-                         lb.data(),ub.data(),NULL,100,NULL,NULL,work_space,NULL,(void*)focusPos.data());
+//    // fit relation for FWHM along X-axis
+//    ret = dlevmar_bc_dif(parabola_func,fitFWHMCoeffs.data(),xFWHM.data(),FOCUSWIDGET_FWHM_FITTING_ORDER,xFWHM.size(),
+//                         lb.data(),ub.data(),NULL,100,NULL,NULL,work_space,NULL,(void*)focusPos.data());
 
 
-    if ( ret < 0 ) {
-        setStatusMsg("Cannot fit 'focusPos - FWHM' relation!!!");
-        delete[] work_space;
-        return;
-    }
+//    if ( ret < 0 ) {
+//        setStatusMsg("Cannot fit 'focusPos - FWHM' relation!!!");
+//        delete[] work_space;
+//        return;
+//    }
 
-    delete[] work_space;
+//    // fit relation for FWHM along Y-axis
+//    ret = dlevmar_bc_dif(parabola_func,fitFWHMCoeffs.data()+FOCUSWIDGET_FWHM_FITTING_ORDER,yFWHM.data(),FOCUSWIDGET_FWHM_FITTING_ORDER,yFWHM.size(),
+//                         lb.data(),ub.data(),NULL,100,NULL,NULL,work_space,NULL,(void*)focusPos.data());
+
+
+//    if ( ret < 0 ) {
+//        setStatusMsg("Cannot fit 'focusPos - FWHM' relation!!!");
+//        delete[] work_space;
+//        return;
+//    }
+
+//    delete[] work_space;
+
 
     // plot the results
 
-    plotDialog->plot(focusPos,xFWHM,yFWHM,fitFWHMCoeffs);
+    QVector<std::vector<double>> pars;
+    runFittingThread->getFitParams(pars);
+
+    QVector<double> xFWHM, yFWHM;
+    for ( int i = 0; i < focusPos.size(); ++i ) {
+        xFWHM.append(pars[i][3]);
+        yFWHM.append(pars[i][4]);
+    }
+
+    plotDialog->plot(focusPos,xFWHM,yFWHM,FOCUSWIDGET_FWHM_FITTING_ORDER,fitFWHMCoeffs);
 
     plotDialog->exec();
 }
@@ -381,6 +404,10 @@ void FocusWidget::run()
 
     focussingSequenceThread->initSequence(focusPos,focusImages,exp_time,nullptr);
 
+    qDebug() << "START SEQUENCE: " << focusPos;
+    qDebug() << "START SEQUENCE: " << focusImages;
+    qDebug() << "START SEQUENCE: " << focussingSequenceThread->isFinished();
+
     focussingSequenceThread->start();
 }
 
@@ -396,8 +423,6 @@ void FocusWidget::stop()
 void FocusWidget::focussing()
 {
     if ( selectedArea.isNull() ) return;
-
-    ui.focussingButton->setEnabled(false);
 
     setStatusMsg("PSF model fitting ...");
 
@@ -453,6 +478,7 @@ void FocusWidget::focussing()
 //    fitParams[2] = selectedArea.y() + selectedArea.height()/2.0;
 //    psfModel->setParams(fitParams);
 
+
     runFittingThread->initFitting(psfModel,focusImages,selectedArea);
 
     runFittingThread->start();
@@ -492,6 +518,7 @@ int runSequence::sequenceLength() const
 
 void runSequence::run()
 {
+    qDebug() << "RUN METHOD!";
     QString status_str;
     for ( n_images = 0; n_images < focusPos.size(); ++n_images ) {
         if ( isInterruptionRequested() ) { // still no read images, so -1 for n_image
@@ -537,7 +564,7 @@ void runSequence::run()
 
 runFitting::runFitting(QWidget *parent): QThread(parent),
   focusImages(QStringList()), fitArea(QRectF(0,0,0,0)),
-  psfModel(nullptr)
+  psfModel(nullptr), fitParams(QVector<std::vector<double>>())
 {
 
 }
@@ -630,6 +657,8 @@ void runFitting::run()
 
             psfModel->fitData(buffer,nelem);
 
+            fitParams.append(psfModel->getParams());
+
 //            std::vector<double> lb,ub;
 //            psfModel->getConstrains(&lb,&ub);
 //            qDebug() << "lower bounds: " << QVector<double>::fromStdVector(lb);
@@ -659,4 +688,11 @@ void runFitting::run()
     }
 
     emit fittingComplete();
+}
+
+
+void runFitting::getFitParams(QVector<std::vector<double> > &pars)
+{
+    pars.clear();
+    pars = fitParams;
 }

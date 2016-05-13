@@ -202,4 +202,32 @@ private:
     void checkConstrains();
 };
 
+
+class Polynomial: public ModelFunction
+{
+public:
+    Polynomial();
+    Polynomial(std::vector<double> &coeffs); // no extra data needed
+
+protected:
+    void compute();
+
+private:
+    void checkConstrains();
+};
+
+
+class Polynomial2D: public ModelFunction2D
+{
+public:
+    Polynomial2D();
+    Polynomial2D(std::vector<double> &coeffs, std::vector<size_t> &degree);
+
+protected:
+    void compute();
+
+private:
+    size_t polyDegree[2];
+};
+
 #endif // MODELFUNCTION_H

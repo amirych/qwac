@@ -30,8 +30,10 @@ public:
 //    void initFitting(PSF_Model *psf_model, QStringList &foc_images, QRectF &fit_area);
     void initFitting(ModelFunction2D *psf_model, QStringList &foc_images, QRectF &fit_area);
     void run();
+    void getFitParams(QVector<std::vector<double>> &pars);
 signals:
-    void fittingParams(QVector<double> params);
+//    void fittingParams(QVector<double> params);
+    void fittingParams(std::vector<double> params);
     void fittingComplete();
     void error(int);
 private:
@@ -39,6 +41,8 @@ private:
     QRectF fitArea;
 //    PSF_Model* psfModel;
     ModelFunction2D* psfModel;
+
+    QVector<std::vector<double>> fitParams;
 };
 
 
@@ -127,6 +131,8 @@ private:
     runFitting *runFittingThread;
 
     FocussingPlotDialog *plotDialog;
+
+    friend class FocussingPlotDialog;
 
 //    void psfModelArgs(std::vector<double> &x, std::vector<double> &y);
 };

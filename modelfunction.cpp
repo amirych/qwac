@@ -109,10 +109,10 @@ int mpfit_wrapper(int m, int n, double *p, double *dy, double **dvec, void *extr
                     /* SOME OFTEN USED MODEL FUNCTIONS DEFINITIONS */
 
 
-// one-dimensional polynominal function:
+// one-dimensional polynomial function:
 //   p(x) = coeffs[0] + coeffs[1]*x + coeffs[2]*x^2 + ... + coeffs[n_coeffs-1]*x^(n_coeffs-1)
 
-static void poly_func(double *x, double *coeffs, size_t n_x, size_t n_coeffs, double *val){
+static void _poly_func(double *x, double *coeffs, size_t n_x, size_t n_coeffs, double *val){
     double arg;
 
     for ( size_t i = 0; i < n_x; ++i ) {
@@ -124,7 +124,7 @@ static void poly_func(double *x, double *coeffs, size_t n_x, size_t n_coeffs, do
     }
 }
 
-// two-dimensional polynominal function:
+// two-dimensional polynomial function:
 // p(x,y) = coefss[0] + coeffs[1]*y + coeffs[2]*y^2 + ... + coeffs[yd]*y^yd +
 //        + coeffs[yd+1]*x + coeffs[yd+2]*x*y + coeffs[yd+3]*x*y^2 + ... + coeffs[2*(yd+1)-1]*x*y^yd +
 //        + coeffs[2*(yd+1)]*x^2 + coeffs[2*(yd+1)+1]*x^2*y + coeffs[2*(yd+1)+2]*x^2*y^2 + ... + coeffs[3*(yd+1)-1]*x^2*y^yd +
@@ -133,7 +133,7 @@ static void poly_func(double *x, double *coeffs, size_t n_x, size_t n_coeffs, do
 //
 //  , where xd and yd are polynom degree along X and Y
 
-static void poly2d_func(double *x, double *y, double *coeffs, size_t n, size_t x_degree, size_t y_degree, double *val){
+static void _poly2d_func(double *x, double *y, double *coeffs, size_t n, size_t x_degree, size_t y_degree, double *val){
     double argx,argy;
     size_t idx;
 
@@ -157,6 +157,25 @@ static void poly2d_func(double *x, double *y, double *coeffs, size_t n, size_t x
 }
 
 
+static int poly_func(std::vector<double> &x, std::vector<double> &coeffs, std::vector<double> &func, void *extra_pars)
+{
+    _poly_func(x.data(), coeffs.data(), x.size(), coeffs.size(), func.data());
+
+    return 0;
+}
+
+
+static int poly2d_func(std::vector<double> &x, std::vector<double> &y, std::vector<double> &coeffs, std::vector<double> &func, void *extra_pars)
+{
+    if ( extra_pars == nullptr ) return 1;
+    size_t* deg = (size_t*)extra_pars; // must be at least 2-element size_t array
+    if ( coeffs.size() < ((deg[0]+1)*(deg[1]+1))) return 2; // not enough coefficients
+
+    _poly2d_func(x.data(), y.data(), coeffs.data(), x.size(), deg[0], deg[1], func.data());
+
+    return 0;
+}
+
 
 //
 //  One-dimensional Gaussian:
@@ -165,7 +184,7 @@ static void poly2d_func(double *x, double *y, double *coeffs, size_t n, size_t x
 //    a1 - center
 //    a2 - FWHM
 //
-//  It is possible to compute Gaussian with optional polynominal background.
+//  It is possible to compute Gaussian with optional polynomial background.
 //  If number of pars is greater than MODELFUNCTION_GAUSS_MIN_NPARS then
 //  extra pars are interpreted as coefficients of polynom (see poly_func function above)
 
@@ -176,7 +195,7 @@ static int gaussian_func(std::vector<double> &x, std::vector<double> &pars, std:
     // compute background polynom
     if ( pars.size() > MODELFUNCTION_GAUSS_MIN_NPARS ) {
         size_t n_poly = pars.size() - MODELFUNCTION_GAUSS_MIN_NPARS;
-        poly_func(x.data(),pars.data()+MODELFUNCTION_GAUSS_MIN_NPARS,x.size(),n_poly,func.data());
+        _poly_func(x.data(),pars.data()+MODELFUNCTION_GAUSS_MIN_NPARS,x.size(),n_poly,func.data());
     } else {
         memset(func.data(),0,func.size()*sizeof(double));
     }
@@ -200,7 +219,7 @@ static int gaussian_func(std::vector<double> &x, std::vector<double> &pars, std:
 //    a2 - FWHM
 //    a3 - moffat's parameter
 //
-//  It is possible to compute Moffat function with optional polynominal background.
+//  It is possible to compute Moffat function with optional polynomial background.
 //  If number of pars is greater than MODELFUNCTION_MOFFAT_MIN_NPARS then
 //  extra pars are interpreted as coefficients of polynom (see poly_func function above)
 
@@ -208,7 +227,7 @@ static int moffat_func(std::vector<double> &x, std::vector<double> &pars, std::v
 {
     if ( pars.size() > MODELFUNCTION_MOFFAT_MIN_NPARS ) {
         size_t n_poly = pars.size() - MODELFUNCTION_MOFFAT_MIN_NPARS;
-        poly_func(x.data(),pars.data()+MODELFUNCTION_MOFFAT_MIN_NPARS,x.size(),n_poly,func.data());
+        _poly_func(x.data(),pars.data()+MODELFUNCTION_MOFFAT_MIN_NPARS,x.size(),n_poly,func.data());
     } else {
         memset(func.data(),0,func.size()*sizeof(double));
     }
@@ -256,7 +275,7 @@ static int gaussian2d_func(std::vector<double> &x, std::vector<double> &y, std::
         size_t* deg = (size_t*)extra_pars; // must be at least 2-element size_t array
         size_t n_poly = pars.size() - MODELFUNCTION_GAUSS2D_MIN_NPARS;
         if ( n_poly < ((deg[0]+1)*(deg[1]+1))) return 2; // not enough coefficients
-        poly2d_func(x.data(),y.data(),pars.data()+ MODELFUNCTION_GAUSS2D_MIN_NPARS,x.size(),deg[0],deg[1],func.data());
+        _poly2d_func(x.data(),y.data(),pars.data()+ MODELFUNCTION_GAUSS2D_MIN_NPARS,x.size(),deg[0],deg[1],func.data());
     } else {
         memset(func.data(),0,func.size()*sizeof(double));
     }
@@ -316,7 +335,7 @@ static int moffat2d_func(std::vector<double> &x, std::vector<double> &y, std::ve
         size_t n_poly = pars.size() - MODELFUNCTION_MOFFAT2D_MIN_NPARS;
 //        qDebug() << "n_poly = " << n_poly << ", n_pars = " << pars.size() << ", must be: " << (deg[0]+1)*(deg[1]+1);
         if ( n_poly < ((deg[0]+1)*(deg[1]+1))) return 2; // not enough coefficients
-        poly2d_func(x.data(),y.data(),pars.data()+ MODELFUNCTION_MOFFAT2D_MIN_NPARS,x.size(),deg[0],deg[1],func.data());
+        _poly2d_func(x.data(),y.data(),pars.data()+ MODELFUNCTION_MOFFAT2D_MIN_NPARS,x.size(),deg[0],deg[1],func.data());
     } else {
         memset(func.data(),0,func.size()*sizeof(double));
     }
@@ -404,6 +423,7 @@ std::vector<double> AbstractModelFunction::getParams()
 
 void AbstractModelFunction::getConstrains(std::vector<double> *lb, std::vector<double> *ub)
 {
+    checkConstrains();
     if ( lb ) *lb = lowerBounds;
     if ( ub ) *ub = upperBounds;
 }
@@ -690,7 +710,7 @@ void GaussModelFunction::checkConstrains()
         if ( N == 0 ) lowerBounds[0] = MODELFUNCTION_AMP_DEFAULT_MIN;
     }
 
-    if ( lowerBounds.size() < params.size() ) { // set default polynominal constrains
+    if ( lowerBounds.size() < params.size() ) { // set default polynomial constrains
         lowerBounds.resize(params.size());
         for ( size_t i = MODELFUNCTION_GAUSS_MIN_NPARS; i < params.size(); ++i ) lowerBounds[i] = MODELFUNCTION_POLY_DEFAULT_MIN;
     }
@@ -704,7 +724,7 @@ void GaussModelFunction::checkConstrains()
         if ( N == 0 ) upperBounds[0] = MODELFUNCTION_AMP_DEFAULT_MAX;
     }
 
-    if ( upperBounds.size() < params.size() ) { // set default polynominal constrains
+    if ( upperBounds.size() < params.size() ) { // set default polynomial constrains
         upperBounds.resize(params.size());
         for ( size_t i = MODELFUNCTION_GAUSS_MIN_NPARS; i < params.size(); ++i ) upperBounds[i] = MODELFUNCTION_POLY_DEFAULT_MAX;
     }
@@ -756,7 +776,7 @@ void MoffatModelFunction::checkConstrains()
         if ( N == 0 ) lowerBounds[0] = MODELFUNCTION_AMP_DEFAULT_MIN;
     }
 
-    if ( lowerBounds.size() < params.size() ) { // set default polynominal constrains
+    if ( lowerBounds.size() < params.size() ) { // set default polynomial constrains
         lowerBounds.resize(params.size());
         for ( size_t i = MODELFUNCTION_MOFFAT_MIN_NPARS; i < params.size(); ++i ) lowerBounds[i] = MODELFUNCTION_POLY_DEFAULT_MIN;
     }
@@ -771,7 +791,7 @@ void MoffatModelFunction::checkConstrains()
         if ( N == 0 ) upperBounds[0] = MODELFUNCTION_AMP_DEFAULT_MAX;
     }
 
-    if ( upperBounds.size() < params.size() ) { // set default polynominal constrains
+    if ( upperBounds.size() < params.size() ) { // set default polynomial constrains
         upperBounds.resize(params.size());
         for ( size_t i = MODELFUNCTION_MOFFAT_MIN_NPARS; i < params.size(); ++i ) upperBounds[i] = MODELFUNCTION_POLY_DEFAULT_MAX;
     }
@@ -830,7 +850,7 @@ void Gauss2DModelFunction::checkConstrains()
         if ( N == 0 ) lowerBounds[0] = MODELFUNCTION_AMP_DEFAULT_MIN;
     }
 
-    if ( lowerBounds.size() < params.size() ) { // set default polynominal constrains
+    if ( lowerBounds.size() < params.size() ) { // set default polynomial constrains
         lowerBounds.resize(params.size());
         for ( size_t i = MODELFUNCTION_GAUSS2D_MIN_NPARS; i < params.size(); ++i ) lowerBounds[i] = MODELFUNCTION_POLY_DEFAULT_MIN;
     }
@@ -847,7 +867,7 @@ void Gauss2DModelFunction::checkConstrains()
         if ( N == 0 ) upperBounds[0] = MODELFUNCTION_AMP_DEFAULT_MAX;
     }
 
-    if ( upperBounds.size() < params.size() ) { // set default polynominal constrains
+    if ( upperBounds.size() < params.size() ) { // set default polynomial constrains
         upperBounds.resize(params.size());
         for ( size_t i = MODELFUNCTION_GAUSS2D_MIN_NPARS; i < params.size(); ++i ) upperBounds[i] = MODELFUNCTION_POLY_DEFAULT_MAX;
     }
@@ -910,7 +930,7 @@ void Moffat2DModelFunction::checkConstrains()
         if ( N == 0 ) lowerBounds[0] = MODELFUNCTION_AMP_DEFAULT_MIN;
     }
 
-    if ( lowerBounds.size() < params.size() ) { // set default polynominal constrains
+    if ( lowerBounds.size() < params.size() ) { // set default polynomial constrains
         lowerBounds.resize(params.size());
         for ( size_t i = MODELFUNCTION_MOFFAT2D_MIN_NPARS; i < params.size(); ++i ) lowerBounds[i] = MODELFUNCTION_POLY_DEFAULT_MIN;
     }
@@ -928,8 +948,86 @@ void Moffat2DModelFunction::checkConstrains()
         if ( N == 0 ) upperBounds[0] = MODELFUNCTION_AMP_DEFAULT_MAX;
     }
 
-    if ( upperBounds.size() < params.size() ) { // set default polynominal constrains
+    if ( upperBounds.size() < params.size() ) { // set default polynomial constrains
         upperBounds.resize(params.size());
         for ( size_t i = MODELFUNCTION_MOFFAT2D_MIN_NPARS; i < params.size(); ++i ) upperBounds[i] = MODELFUNCTION_POLY_DEFAULT_MAX;
     }
+}
+
+
+                    /* Polynomial functions classes */
+
+Polynomial::Polynomial(std::vector<double> &coeffs): ModelFunction(poly_func,coeffs)
+{
+    modelFunctionName = "Polynomial";
+}
+
+
+Polynomial::Polynomial(): Polynomial(empty_vec)
+{
+
+}
+
+
+void Polynomial::compute()
+{
+    if ( params.size() == 0 ) {
+        functionValue.assign(functionValue.size(),0.0);
+        return;
+    }
+
+    ModelFunction::compute();
+}
+
+
+void Polynomial::checkConstrains()
+{
+    if ( lowerBounds.size() < params.size() ) {
+        size_t N = lowerBounds.size();
+        lowerBounds.resize(params.size());
+        for (size_t i = N; i < params.size(); ++i ) lowerBounds[i] = MODELFUNCTION_POLY_DEFAULT_MIN;
+    }
+
+    if ( upperBounds.size() < params.size() ) {
+        size_t N = upperBounds.size();
+        upperBounds.resize(params.size());
+        for (size_t i = N; i < params.size(); ++i ) upperBounds[i] = MODELFUNCTION_POLY_DEFAULT_MAX;
+    }
+}
+
+
+
+Polynomial2D::Polynomial2D(std::vector<double> &coeffs, std::vector<size_t> &degree): ModelFunction2D(poly2d_func, coeffs)
+{
+    if ( degree.size() >= 2 ) {
+        polyDegree[0] = degree[0];
+        polyDegree[1] = degree[1];
+    } else if ( degree.size() == 1 ) {
+        polyDegree[0] = degree[0];
+        polyDegree[1] = degree[0];
+    } else {
+        polyDegree[0] = 0;
+        polyDegree[1] = 0;
+    }
+
+    extraParams = polyDegree;
+    modelFunctionName = "Polynomial2D";
+}
+
+
+static std::vector<size_t> empty_vec_int;
+Polynomial2D::Polynomial2D(): Polynomial2D(empty_vec,empty_vec_int)
+{
+
+}
+
+
+void Polynomial2D::compute()
+{
+    if ( params.size() == 0 ) {
+        functionValue.assign(functionValue.size(),0.0);
+        return;
+    }
+
+    ModelFunction2D::compute();
 }
