@@ -485,8 +485,8 @@ void AbstractModelFunction::fitting()
     int fitStatus = mpfit(mpfit_wrapper,measurementData.size(),params.size(),params.data(),pars,&fitConfig,(void*)this,&fitInfo);
 //    int fitStatus = mpfit(mpfit_wrapper,measurementData.size(),params.size(),params.data(),pars,0,(void*)this,&fitInfo);
 
-    qDebug() << "MPFIT RES: status = " << fitStatus << ", bestnorm: " << fitInfo.bestnorm << ", niter = " << fitInfo.niter;
-    qDebug() << "MPFIT PARS: " << QVector<double>::fromStdVector(params);
+//    qDebug() << "MPFIT RES: status = " << fitStatus << ", bestnorm: " << fitInfo.bestnorm << ", niter = " << fitInfo.niter;
+//    qDebug() << "MPFIT PARS: " << QVector<double>::fromStdVector(params);
 
 }
 

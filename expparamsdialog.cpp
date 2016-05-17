@@ -44,7 +44,6 @@ ExpParamsDialog::ExpParamsDialog(QWidget *parent): QDialog(parent)
 void ExpParamsDialog::init(QString &filename, QStringList &items, int index, int xbin, int ybin)
 {
     ui.filenameLineEdit->setText(filename);
-    qDebug() << "EXPPARAM INIT: " << filename;
     ui.rateComboBox->clear();
     ui.rateComboBox->addItems(items);
     ui.rateComboBox->setCurrentIndex(index);

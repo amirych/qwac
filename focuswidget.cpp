@@ -142,6 +142,10 @@ FocusWidget::~FocusWidget()
 
     delete psfModel;
 
+    delete expParamsDialog;
+    delete plotDialog;
+
+
 //    delete focussingSequenceThread;
 //    delete runFittingThread;
 //    delete plotDialog;
@@ -334,7 +338,7 @@ void FocusWidget::fittingComplete()
         yFWHM.append(pars[i][4]);
     }
 
-    plotDialog->plot(focusPos,xFWHM,yFWHM,FOCUSWIDGET_FWHM_FITTING_ORDER,fitFWHMCoeffs);
+    plotDialog->plot(focusPos,xFWHM,yFWHM,FOCUSWIDGET_FWHM_FITTING_ORDER,focusImages,selectedArea);
 
     plotDialog->exec();
 }
@@ -371,7 +375,8 @@ void FocusWidget::setStatusMsg(QString msg)
 // base realization of reaction on "Quit" button (just close the widget)
 void FocusWidget::about_quit()
 {
-    this->deleteLater();
+//    this->deleteLater();
+    close();
 }
 
 
@@ -380,6 +385,8 @@ void FocusWidget::run()
     startFocusValue = ui.startFocusSpinBox->value();
     stopFocusValue = ui.stopFocusSpinBox->value();
     stepFocusValue = ui.stepFocusSpinBox->value();
+
+    selectedArea = QRectF(0,0,0,0);
 
     if ( stepFocusValue <= 0 ) {
         if ( startFocusValue >= stopFocusValue ) return;
@@ -404,9 +411,7 @@ void FocusWidget::run()
 
     focussingSequenceThread->initSequence(focusPos,focusImages,exp_time,nullptr);
 
-    qDebug() << "START SEQUENCE: " << focusPos;
-    qDebug() << "START SEQUENCE: " << focusImages;
-    qDebug() << "START SEQUENCE: " << focussingSequenceThread->isFinished();
+//    qDebug() << "START SEQUENCE: " << focussingSequenceThread->isFinished();
 
     focussingSequenceThread->start();
 }
@@ -467,7 +472,7 @@ void FocusWidget::focussing()
 //    psfModel->setParams(pp,psfModelBackgroundDegree);
 
 //    qDebug() << "ARG LEN: " << psfModelX.size();
-    qDebug() << "INIT PARS: " << QVector<double>::fromStdVector(pp);
+//    qDebug() << "INIT PARS: " << QVector<double>::fromStdVector(pp);
 //    psfModel->setParams(pp,(void*)back_deg);
 
     // set initial center of PSF model as the center of the selected area
@@ -518,7 +523,10 @@ int runSequence::sequenceLength() const
 
 void runSequence::run()
 {
-    qDebug() << "RUN METHOD!";
+//    qDebug() << "RUN METHOD!";
+//    qDebug() << "START SEQUENCE: " << focusPos;
+//    qDebug() << "START SEQUENCE: " << focusImages;
+
     QString status_str;
     for ( n_images = 0; n_images < focusPos.size(); ++n_images ) {
         if ( isInterruptionRequested() ) { // still no read images, so -1 for n_image
@@ -547,6 +555,7 @@ void runSequence::run()
         status_str = QString(FOCUSWIDGET_GET_IMAGE_MSG_FMT).arg(focusImages[n_images]);
         emit status(status_str);
         ret = caller->getImage(focusImages[n_images],exp_time, expParams);
+//        qDebug() << "GOT IMAGE: " << focusImages[n_images];
         if ( ret ) {
             status_str = QString(FOCUSWIDGET_FAILURE_MSG).arg(ret);
             emit status(status_str);
@@ -623,7 +632,7 @@ void runFitting::run()
         char fname[FLEN_FILENAME];
         strncpy(fname,filename.toLocal8Bit().data(),filename.size()+1);
 
-        qDebug() << "PSF fitting: " << filename;
+//        qDebug() << "PSF fitting: " << filename;
 
         try {
             fits_open_image(&FITS_fptr, fname, READONLY, &fits_status);

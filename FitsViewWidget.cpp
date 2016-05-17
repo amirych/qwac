@@ -157,7 +157,10 @@ FitsViewWidget::FitsViewWidget(QWidget *parent): QGraphicsView(parent),
     //    connect(this,SIGNAL(ColorTableIsChanged(FitsViewWidget::ColorTable)),this,SLOT(showImage()));
     connect(this,SIGNAL(ColorTableIsChanged(FitsViewWidget::ColorTable)),this,SLOT(updateFitsPixmap()));
 //    connect(view,SIGNAL(zoomWasChanged(qreal)),this,SLOT(changeZoom(qreal)));
-    connect(this,SIGNAL(zoomIsChanged(qreal)),this,SLOT(changeZoom(qreal)));
+
+//    connect(this,SIGNAL(zoomIsChanged(qreal)),this,SLOT(changeZoom(qreal)));
+    connect(this,SIGNAL(viewAreaIsChanged()),this,SLOT(updateViewArea()));
+
 //    connect(view,SIGNAL(cursorPos(QPointF)),this,SLOT(changeCursorPos(QPointF)));
     connect(this,SIGNAL(cutsAreChanged(double,double)),this,SLOT(updateFitsPixmap()));
 
@@ -190,6 +193,14 @@ void FitsViewWidget::load(const QString fits_filename, const bool autoscale)
 
     int fits_status = 0;
     currentError = FitsViewWidget::OK;
+
+    rubberBandIsActive = false;
+    rubberBandIsShown = false;
+    rubberBandOrigin = QPointF(0,0);
+    rubberBandEnd = QPointF(0,0);
+
+    emit regionWasDeselected();
+
 
     // THE ONLY 2D-images is support now!!!
     int maxdim = 2;
@@ -456,6 +467,8 @@ void FitsViewWidget::centerOn(qreal x, qreal y)
 
 //    view->centerOn(x,y);
     QGraphicsView::centerOn(cen);
+
+    viewAreaIsChanged();
 //    qDebug() << "recentering: " << cen;
 }
 
@@ -487,6 +500,11 @@ void FitsViewWidget::setZoom(const qreal zoom_factor)
     currentZoomFactor = zoom_factor;
     QTransform tr(zoom_factor,0.0,0.0,-zoom_factor,0.0,0.0);
     this->setTransform(tr);
+
+    emit viewAreaIsChanged();
+//    currentViewedSubImage = this->mapToScene(this->viewport()->rect()).boundingRect();
+//    if ( currentViewedSubImage.width() > currentImage_dim[0] ) currentViewedSubImage.setWidth(currentImage_dim[0]);
+//    if ( currentViewedSubImage.height() > currentImage_dim[1] ) currentViewedSubImage.setHeight(currentImage_dim[1]);
 }
 
 
@@ -500,9 +518,10 @@ void FitsViewWidget::incrementZoom(const qreal zoom_inc)
 
     this->scale(zoom_inc,zoom_inc);
 
-    emit zoomIsChanged(zoom_inc);
+//    emit zoomIsChanged(zoom_inc);
 
-//    currentZoomFactor *= zoom_inc;
+    currentZoomFactor *= zoom_inc;
+    emit viewAreaIsChanged();
 
 //    // recompute current viewed sub-image
 //    currentViewedSubImage = view->mapToScene(view->viewport()->rect()).boundingRect();
@@ -560,6 +579,15 @@ void FitsViewWidget::getSelectedSubImage(std::vector<double> &subImage)
     getSubImage(subImage,region);
 
 }
+
+
+QPixmap FitsViewWidget::getPixmap()
+{
+    if ( !currentScaledImage_buffer ) return QPixmap();
+
+    return currentPixmap;
+}
+
 
         /*  PROTECTED METHODS  */
 
@@ -809,8 +837,8 @@ void FitsViewWidget::resizeTimeout()
 
     centerOn(currentViewedSubImageCenter);
 
-    qreal hfactor = 1.0*rr.height()/currentViewedSubImage.height();
-    qreal wfactor = 1.0*rr.width()/currentViewedSubImage.width();
+    qreal hfactor = 1.0*(rr.height()-2.0*FITS_VIEW_IMAGE_MARGIN)/currentViewedSubImage.height();
+    qreal wfactor = 1.0*(rr.width()-2.0*FITS_VIEW_IMAGE_MARGIN)/currentViewedSubImage.width();
 
     qreal factor = (hfactor > wfactor) ? wfactor : hfactor;
     incrementZoom(factor);
@@ -831,15 +859,25 @@ void FitsViewWidget::resizeTimeout()
 
 }
 
-void FitsViewWidget::changeZoom(qreal factor)
-{
-    currentZoomFactor *= factor;
 
+void FitsViewWidget::updateViewArea()
+{
     // recompute current viewed sub-image
     currentViewedSubImage = this->mapToScene(this->viewport()->rect()).boundingRect();
     if ( currentViewedSubImage.width() > currentImage_dim[0] ) currentViewedSubImage.setWidth(currentImage_dim[0]);
     if ( currentViewedSubImage.height() > currentImage_dim[1] ) currentViewedSubImage.setHeight(currentImage_dim[1]);
 }
+
+
+//void FitsViewWidget::changeZoom(qreal factor)
+//{
+//    currentZoomFactor *= factor;
+
+//    // recompute current viewed sub-image
+//    currentViewedSubImage = this->mapToScene(this->viewport()->rect()).boundingRect();
+//    if ( currentViewedSubImage.width() > currentImage_dim[0] ) currentViewedSubImage.setWidth(currentImage_dim[0]);
+//    if ( currentViewedSubImage.height() > currentImage_dim[1] ) currentViewedSubImage.setHeight(currentImage_dim[1]);
+//}
 
 
 void FitsViewWidget::updateFitsPixmap()

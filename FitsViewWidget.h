@@ -70,6 +70,8 @@ public:
     QRectF getSelectedArea() const;
     void getSelectedSubImage(std::vector<double> &subImage);
 
+    QPixmap getPixmap(); // return viewed image as pixmap
+
 public slots:
     void load(const QString fits_filename, const bool autoscale = true);
     void rescale(const double lcuts, const double hcuts);
@@ -81,10 +83,11 @@ signals:
     void imageIsShown(QString filename);
     void cutsAreChanged(double lcut, double hcut);
     void ColorTableIsChanged(FitsViewWidget::ColorTable ct);
-    void zoomIsChanged(qreal factor);
+//    void zoomIsChanged(qreal factor);
     void regionWasSelected(QRectF region);
     void regionWasDeselected();
     void imagePoint(QPointF pos, double value);
+    void viewAreaIsChanged();
 
 protected:
     virtual void mouseMoveEvent(QMouseEvent* event);
@@ -107,8 +110,9 @@ protected:
 
 private slots:
     void resizeTimeout();
-    void changeZoom(qreal factor);
+//    void changeZoom(qreal factor);
     void updateFitsPixmap();
+    void updateViewArea();
 
 private:
     int currentError;

@@ -3,6 +3,8 @@
 #include <algorithm>
 
 #include "focuswidget.h"
+#include "FitsViewWidget.h"
+
 
 FocussingPlotDialog::FocussingPlotDialog(const QString &title, FocusWidget *parent): QDialog((QWidget*)parent),
     xFWHMCurve(nullptr), yFWHMCurve(nullptr), xFWHMFitCurve(nullptr), yFWHMFitCurve(nullptr), caller(parent),
@@ -20,7 +22,6 @@ FocussingPlotDialog::FocussingPlotDialog(const QString &title, FocusWidget *pare
 
     QPen sym_pen = QPen(QColor("black"));
     QBrush sym_brush = QBrush(Qt::SolidPattern);
-//    QSize sym_size = QSize(5,5);
     QwtSymbol *curve_sym = new QwtSymbol(QwtSymbol::Rect);
     curve_sym->setBrush(sym_brush);
     curve_sym->setPen(sym_pen);
@@ -50,15 +51,24 @@ FocussingPlotDialog::FocussingPlotDialog(const QString &title, FocusWidget *pare
     yFWHMFitCurve->setStyle(QwtPlotCurve::Lines);
     yFWHMFitCurve->setSymbol(new QwtSymbol(QwtSymbol::NoSymbol));
     yFWHMFitCurve->setPen(col,1.0);
+
+    images_layout = new QHBoxLayout(ui.imagesScrollArea);
 }
 
 
+FocussingPlotDialog::~FocussingPlotDialog()
+{
+    ui.focusCurvePlotX->detachItems(QwtPlotItem::Rtti_PlotCurve, false);
+    ui.focusCurvePlotY->detachItems(QwtPlotItem::Rtti_PlotCurve, false);
+}
+
 void FocussingPlotDialog::plot(QVector<double> &foc_value, QVector<double> &xfwhm, QVector<double> &yfwhm, size_t fit_order,
-                               QVector<double> &fit_coeffs)
+                               QStringList &images, QRectF &view_area)
 {
 
     // clear possible previous plotted curves
     ui.focusCurvePlotX->detachItems(QwtPlotItem::Rtti_PlotCurve, false);
+    ui.focusCurvePlotY->detachItems(QwtPlotItem::Rtti_PlotCurve, false);
 
     xFWHMCurve->setSamples(foc_value,xfwhm);
     xFWHMCurve->attach(ui.focusCurvePlotX);
@@ -69,7 +79,7 @@ void FocussingPlotDialog::plot(QVector<double> &foc_value, QVector<double> &xfwh
 
     auto foc_range = std::minmax_element(foc_value.constBegin(),foc_value.constEnd());
 
-    qDebug() << "PARABOLA FITTING: ";
+//    qDebug() << "PARABOLA FITTING: ";
 //    qDebug() << "focVal: " << foc_value;
 //    qDebug() << "xfwhm: " << xfwhm;
 //    qDebug() << "yfwhm: " << yfwhm;
@@ -146,8 +156,6 @@ void FocussingPlotDialog::plot(QVector<double> &foc_value, QVector<double> &xfwh
     ui.focusCurvePlotX->setAxisScale(QwtPlot::yLeft,min_val,max_val);
     ui.focusCurvePlotY->setAxisScale(QwtPlot::yLeft,min_val,max_val);
 
-    ui.focusCurvePlotX->replot();
-    ui.focusCurvePlotY->replot();
 
     // compute the best focus value
     double best_focusX, best_focusY, best_focus;
@@ -161,4 +169,23 @@ void FocussingPlotDialog::plot(QVector<double> &foc_value, QVector<double> &xfwh
     ui.bestFocusSpinBox->setValue(best_focus);
 
     connect(ui.setBestFocusButton,&QPushButton::clicked,[=]{caller->moveFocus(best_focus);});
+
+
+    // plot images
+
+    QLayoutItem *child;
+    while ((child = images_layout->takeAt(0)) != 0) {
+        delete child->widget();
+        delete child;
+    }
+
+    for ( int i = 0; i < images.size(); ++i ) {
+        FitsViewWidget *view = new FitsViewWidget;
+        view->load(images[i]);
+        QPointF cc = view_area.center();
+        view->centerOn(cc);
+        view->setZoom(1.0);
+        view->setAttribute(Qt::WA_TransparentForMouseEvents);
+        images_layout->addWidget(view);
+    }
 }
